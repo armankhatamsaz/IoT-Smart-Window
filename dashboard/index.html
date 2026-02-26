@@ -289,7 +289,7 @@
     }
 
     // --- 3. MQTT Logic ---
-    const brokerUrl = 'ws://broker.hivemq.com:8000/mqtt';
+    const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
     const client = mqtt.connect(brokerUrl);
 
     client.on('connect', () => {
