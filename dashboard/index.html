@@ -56,10 +56,33 @@
         .hidden-view { display: none !important; }
     </style>
 </head>
-<body class="bg-background-light text-slate-900 font-display min-h-screen overflow-x-hidden">
-<div class="flex h-screen w-full flex-col lg:flex-row overflow-hidden">
+<body class="bg-background-light text-slate-900 font-display min-h-screen overflow-x-hidden relative">
+
+<div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-background-light overflow-hidden">
+    <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
     
-    <aside class="w-full lg:w-20 lg:flex-col flex flex-row items-center justify-between lg:justify-start bg-white border-r border-slate-200 py-4 px-4 lg:px-0 lg:py-8 z-20 shadow-sm relative">
+    <div class="glass-panel rounded-3xl p-8 shadow-glass flex flex-col items-center z-10 w-full max-w-sm mx-4 border border-white">
+        <div class="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 mb-6">
+            <span class="material-symbols-outlined text-3xl">lock</span>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">System Login</h2>
+        <p class="text-slate-500 text-sm mb-8 text-center">Please enter the admin password to access the control center.</p>
+        
+        <input type="password" id="login-pass" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Password">
+        
+        <p id="login-error" class="text-rose-500 text-xs mb-4 hidden-view font-semibold">❌ Incorrect password. Try again.</p>
+
+        <button id="btn-login" class="neumorphic-button w-full rounded-xl py-3 font-bold text-primary flex items-center justify-center gap-2">
+            <span>Login Securely</span>
+            <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+        </button>
+    </div>
+</div>
+
+<div id="app-wrapper" class="hidden-view flex h-screen w-full flex-col lg:flex-row overflow-hidden">
+    
+    <aside class="w-full lg:w-20 lg:flex-col flex flex-row items-center justify-between lg:justify-start bg-white border-r border-slate-200 py-4 px-4 lg:px-0 lg:py-8 z-20 shadow-sm relative shrink-0">
         <div class="mb-0 lg:mb-12 flex justify-center w-full">
             <div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30">
                 <span class="material-symbols-outlined">grid_view</span>
@@ -82,7 +105,7 @@
         <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
         <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
         
-        <header class="flex items-center justify-between px-8 py-6 z-10">
+        <header class="flex items-center justify-between px-8 py-6 z-10 shrink-0">
             <div class="flex flex-col">
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Smart Window Control Center</h1>
                 <div class="flex items-center gap-2 mt-1">
@@ -93,10 +116,13 @@
                     <p id="mqtt-text" class="text-xs font-medium text-red-600 uppercase tracking-wider">Connecting...</p>
                 </div>
             </div>
+            <button id="btn-logout" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 text-sm font-semibold">
+                <span class="material-symbols-outlined text-[18px]">logout</span> Logout
+            </button>
         </header>
 
         <div id="view-home" class="flex-1 overflow-y-auto p-4 lg:p-8 pt-2">
-            <div class="grid grid-cols-12 gap-6 h-full max-w-[1600px] mx-auto">
+            <div class="grid grid-cols-12 gap-6 max-w-[1600px] mx-auto pb-8">
                 <div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
                     <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[400px]">
                         <div class="flex justify-between items-start mb-4 z-10">
@@ -115,7 +141,7 @@
                             
                             <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
                                 <div class="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-xl border border-white/10">
-                                    <span class="block text-xs text-white/70">External Lux</span>
+                                    <span class="block text-xs text-white/70">External Lux Camera</span>
                                     <span id="cam-lux" class="font-mono text-lg font-bold">-- lx</span>
                                 </div>
                             </div>
@@ -141,14 +167,14 @@
 
                 <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
                     <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col gap-4">
-                        <h3 class="text-slate-800 font-bold text-lg mb-2">Sensor Grid</h3>
+                        <h3 class="text-slate-800 font-bold text-lg mb-0">Indoor Environment</h3>
                         
                         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
                             <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                                 <span class="material-symbols-outlined">thermostat</span>
                             </div>
                             <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Temperature</p>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Temp</p>
                                 <div class="flex items-baseline gap-1">
                                     <h4 id="val-temp" class="text-2xl font-bold text-slate-800">--</h4>
                                     <span class="text-sm text-slate-500">°C</span>
@@ -164,7 +190,7 @@
                                 <span class="material-symbols-outlined">water_drop</span>
                             </div>
                             <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Humidity</p>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Humidity</p>
                                 <div class="flex items-baseline gap-1">
                                     <h4 id="val-hum" class="text-2xl font-bold text-slate-800">--</h4>
                                     <span class="text-sm text-slate-500">%</span>
@@ -174,13 +200,13 @@
                                 <svg class="w-full h-full stroke-teal-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 25 Q 15 35, 30 20 T 64 15"></path></svg>
                             </div>
                         </div>
-                        
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 mb-2">
                             <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
                                 <span class="material-symbols-outlined">light_mode</span>
                             </div>
                             <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Light Level</p>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Light</p>
                                 <div class="flex items-baseline gap-1">
                                     <h4 id="val-light" class="text-2xl font-bold text-slate-800">--</h4>
                                     <span class="text-sm text-slate-500">Lux</span>
@@ -190,9 +216,43 @@
                                 <svg class="w-full h-full stroke-amber-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 35 L 10 30 L 20 10 L 30 15 L 40 5 L 64 0"></path></svg>
                             </div>
                         </div>
+
+                        <h3 class="text-slate-800 font-bold text-lg mb-0 mt-2 border-t pt-4">Outdoor Environment</h3>
+                        
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                <span class="material-symbols-outlined">device_thermostat</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outdoor Temp</p>
+                                <div class="flex items-baseline gap-1">
+                                    <h4 id="val-temp-out" class="text-2xl font-bold text-slate-800">--</h4>
+                                    <span class="text-sm text-slate-500">°C</span>
+                                </div>
+                            </div>
+                            <div class="h-10 w-16">
+                                <svg class="w-full h-full stroke-indigo-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 20 Q 10 30, 20 15 T 40 25 T 64 10"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
+                                <span class="material-symbols-outlined">humidity_percentage</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outdoor Hum</p>
+                                <div class="flex items-baseline gap-1">
+                                    <h4 id="val-hum-out" class="text-2xl font-bold text-slate-800">--</h4>
+                                    <span class="text-sm text-slate-500">%</span>
+                                </div>
+                            </div>
+                            <div class="h-10 w-16">
+                                <svg class="w-full h-full stroke-teal-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 25 Q 15 35, 30 20 T 64 15"></path></svg>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex-1 flex flex-col">
+                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex-1 flex flex-col min-h-[250px]">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
                                 <span class="material-symbols-outlined text-primary">history</span> System Logs
@@ -208,7 +268,7 @@
 
         <div id="view-history" class="hidden-view flex-1 overflow-y-auto p-4 lg:p-8 pt-2">
             <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
-                <div class="glass-panel rounded-2xl p-6 shadow-glass flex-1 flex flex-col">
+                <div class="glass-panel rounded-2xl p-6 shadow-glass flex-1 flex flex-col min-h-[500px]">
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
@@ -229,6 +289,43 @@
 
 <script>
     let historyInterval = null;
+    let mqttClient = null;
+
+    // --- 0. Login Logic ---
+    const loginOverlay = document.getElementById('login-overlay');
+    const appWrapper = document.getElementById('app-wrapper');
+    const btnLogin = document.getElementById('btn-login');
+    const loginPass = document.getElementById('login-pass');
+    const loginError = document.getElementById('login-error');
+    const btnLogout = document.getElementById('btn-logout');
+
+    btnLogin.addEventListener('click', handleLogin);
+    loginPass.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
+
+    function handleLogin() {
+        if (loginPass.value === 'admin') {
+            loginOverlay.classList.add('hidden-view');
+            appWrapper.classList.remove('hidden-view');
+            loginError.classList.add('hidden-view');
+            loginPass.value = '';
+            
+            // Start the system only after successful login
+            if(!mqttClient) initSystem(); 
+        } else {
+            loginError.classList.remove('hidden-view');
+            loginPass.value = '';
+        }
+    }
+
+    btnLogout.addEventListener('click', () => {
+        appWrapper.classList.add('hidden-view');
+        loginOverlay.classList.remove('hidden-view');
+        // Optional: Disconnect MQTT on logout for security
+        // if(mqttClient) { mqttClient.end(); mqttClient = null; }
+    });
+
 
     // --- 1. Tab Switching Logic ---
     const navHome = document.getElementById('nav-home');
@@ -239,31 +336,22 @@
     navHome.addEventListener('click', () => {
         viewHome.classList.remove('hidden-view');
         viewHistory.classList.add('hidden-view');
-        
         navHome.classList.add('bg-primary/10', 'text-primary');
         navHome.classList.remove('text-slate-400');
-        
         navHistory.classList.remove('bg-primary/10', 'text-primary');
         navHistory.classList.add('text-slate-400');
-
-        // توقف آپدیت خودکار نمودار وقتی تو تب Home هستیم
         if(historyInterval) clearInterval(historyInterval);
     });
 
     navHistory.addEventListener('click', () => {
         viewHistory.classList.remove('hidden-view');
         viewHome.classList.add('hidden-view');
-        
         navHistory.classList.add('bg-primary/10', 'text-primary');
         navHistory.classList.remove('text-slate-400');
-        
         navHome.classList.remove('bg-primary/10', 'text-primary');
         navHome.classList.add('text-slate-400');
 
-        // لود کردن اولیه دیتا
         loadThingSpeakData();
-        
-        // تنظیم آپدیت خودکار هر 20 ثانیه
         if(historyInterval) clearInterval(historyInterval);
         historyInterval = setInterval(loadThingSpeakData, 20000);
     });
@@ -288,68 +376,67 @@
         inactiveText.classList.replace('text-primary', 'text-slate-700');
     }
 
-    // --- 3. MQTT Logic ---
-    const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
-    const client = mqtt.connect(brokerUrl);
-
-    client.on('connect', () => {
-        document.getElementById('mqtt-ping').classList.replace('bg-red-400', 'bg-emerald-400');
-        document.getElementById('mqtt-dot').classList.replace('bg-red-500', 'bg-emerald-500');
-        const txt = document.getElementById('mqtt-text');
-        txt.classList.replace('text-red-600', 'text-emerald-600');
-        txt.innerText = 'MQTT Connected';
-
-        client.subscribe('home/sensor/temp/indoor');
-        client.subscribe('home/sensor/hum/indoor');
-        client.subscribe('home/sensor/light/indoor');
-        client.subscribe('home/actuator/window');
-    });
-
-    client.on('message', (topic, message) => {
-        const payload = JSON.parse(message.toString());
-        
-        if (topic === 'home/sensor/temp/indoor') {
-            document.getElementById('val-temp').innerText = payload.value;
-        } 
-        else if (topic === 'home/sensor/hum/indoor') {
-            document.getElementById('val-hum').innerText = payload.value;
-        } 
-        else if (topic === 'home/sensor/light/indoor') {
-            document.getElementById('val-light').innerText = payload.value;
-            document.getElementById('cam-lux').innerText = payload.value + ' lx';
-        }
-        else if (topic === 'home/actuator/window') {
-            if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
-            if(payload.command === "CLOSE") setActiveButton(btnClose, btnOpen);
-
-            const logContainer = document.getElementById('activity-log');
-            if(logContainer.innerHTML.includes("Waiting for system actions")) logContainer.innerHTML = '';
-
-            const timeString = new Date().toLocaleTimeString();
-            const colorClass = payload.command === "OPEN" ? "text-primary" : "text-rose-500";
-            
-            const logEntry = document.createElement('div');
-            logEntry.className = "flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse";
-            logEntry.innerHTML = `
-                <span class="text-slate-500 font-mono text-xs">${timeString}</span>
-                <span class="font-bold ${colorClass}">${payload.command} WINDOW</span>
-            `;
-            
-            logContainer.prepend(logEntry);
-            setTimeout(() => logEntry.classList.remove('animate-pulse'), 1000);
-            while (logContainer.children.length > 5) logContainer.removeChild(logContainer.lastChild);
-        }
-    });
-
     btnOpen.addEventListener('click', () => {
-        const payload = JSON.stringify({command: "OPEN", reason: "Web UI Manual Override"});
-        client.publish('home/actuator/window', payload);
+        if(mqttClient) mqttClient.publish('home/actuator/window', JSON.stringify({command: "OPEN", reason: "Web Dashboard Auth User"}));
     });
 
     btnClose.addEventListener('click', () => {
-        const payload = JSON.stringify({command: "CLOSE", reason: "Web UI Manual Override"});
-        client.publish('home/actuator/window', payload);
+        if(mqttClient) mqttClient.publish('home/actuator/window', JSON.stringify({command: "CLOSE", reason: "Web Dashboard Auth User"}));
     });
+
+    // --- 3. MQTT Logic Initialization ---
+    function initSystem() {
+        const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
+        mqttClient = mqtt.connect(brokerUrl);
+
+        mqttClient.on('connect', () => {
+            document.getElementById('mqtt-ping').classList.replace('bg-red-400', 'bg-emerald-400');
+            document.getElementById('mqtt-dot').classList.replace('bg-red-500', 'bg-emerald-500');
+            const txt = document.getElementById('mqtt-text');
+            txt.classList.replace('text-red-600', 'text-emerald-600');
+            txt.innerText = 'MQTT Connected';
+
+            mqttClient.subscribe('home/sensor/+/+');
+            mqttClient.subscribe('home/actuator/window');
+        });
+
+        mqttClient.on('message', (topic, message) => {
+            try {
+                const payload = JSON.parse(message.toString());
+                const value = payload.value !== undefined ? payload.value : parseFloat(payload);
+                
+                if (topic === 'home/sensor/temp/indoor') document.getElementById('val-temp').innerText = value;
+                else if (topic === 'home/sensor/hum/indoor') document.getElementById('val-hum').innerText = value;
+                else if (topic === 'home/sensor/light/indoor') document.getElementById('val-light').innerText = value;
+                
+                else if (topic === 'home/sensor/temp/outdoor') document.getElementById('val-temp-out').innerText = value;
+                else if (topic === 'home/sensor/hum/outdoor') document.getElementById('val-hum-out').innerText = value;
+                else if (topic === 'home/sensor/light/outdoor') document.getElementById('cam-lux').innerText = value + ' lx'; // Showing light out on camera
+                
+                else if (topic === 'home/actuator/window') {
+                    if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
+                    if(payload.command === "CLOSE") setActiveButton(btnClose, btnOpen);
+
+                    const logContainer = document.getElementById('activity-log');
+                    if(logContainer.innerHTML.includes("Waiting for system actions")) logContainer.innerHTML = '';
+
+                    const timeString = new Date().toLocaleTimeString();
+                    const colorClass = payload.command === "OPEN" ? "text-primary" : "text-rose-500";
+                    
+                    const logEntry = document.createElement('div');
+                    logEntry.className = "flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse shrink-0";
+                    logEntry.innerHTML = `
+                        <span class="text-slate-500 font-mono text-xs">${timeString}</span>
+                        <span class="font-bold ${colorClass}">${payload.command} WINDOW</span>
+                    `;
+                    
+                    logContainer.prepend(logEntry);
+                    setTimeout(() => logEntry.classList.remove('animate-pulse'), 1000);
+                    while (logContainer.children.length > 5) logContainer.removeChild(logContainer.lastChild);
+                }
+            } catch(e){}
+        });
+    }
 
     // --- 4. ThingSpeak History & Chart Logic ---
     let historyChartInstance = null;
@@ -367,21 +454,20 @@
                 const d = new Date(f.created_at);
                 return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
             });
-            const temps = data.feeds.map(f => parseFloat(f.field1));
-            const hums = data.feeds.map(f => parseFloat(f.field2));
+            const temps_in = data.feeds.map(f => parseFloat(f.field1));
+            const hums_in = data.feeds.map(f => parseFloat(f.field2));
+            const temps_out = data.feeds.map(f => parseFloat(f.field4));
+            const hums_out = data.feeds.map(f => parseFloat(f.field5));
 
-            renderChart(labels, temps, hums);
+            renderChart(labels, temps_in, hums_in, temps_out, hums_out);
         } catch (error) {
             console.error("Error fetching ThingSpeak data:", error);
         }
     }
 
-    function renderChart(labels, temps, hums) {
+    function renderChart(labels, temps_in, hums_in, temps_out, hums_out) {
         const ctx = document.getElementById('historyChart').getContext('2d');
-        
-        if (historyChartInstance) {
-            historyChartInstance.destroy();
-        }
+        if (historyChartInstance) historyChartInstance.destroy();
 
         historyChartInstance = new Chart(ctx, {
             type: 'line',
@@ -389,22 +475,42 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Temperature (°C)',
-                        data: temps,
-                        borderColor: '#4f46e5',
+                        label: 'Indoor Temp (°C)',
+                        data: temps_in,
+                        borderColor: '#4f46e5', // Indigo
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
                         fill: true
                     },
                     {
-                        label: 'Humidity (%)',
-                        data: hums,
-                        borderColor: '#0d9488',
-                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        label: 'Outdoor Temp (°C)',
+                        data: temps_out,
+                        borderColor: '#f59e0b', // Amber
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
                         fill: true
+                    },
+                    {
+                        label: 'Indoor Hum (%)',
+                        data: hums_in,
+                        borderColor: '#0d9488', // Teal
+                        backgroundColor: 'rgba(13, 148, 136, 0.0)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: 'Outdoor Hum (%)',
+                        data: hums_out,
+                        borderColor: '#e11d48', // Rose
+                        backgroundColor: 'rgba(225, 29, 72, 0.0)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: false
                     }
                 ]
             },
@@ -412,7 +518,11 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: false } }
+                scales: { y: { beginAtZero: false } },
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                }
             }
         });
     }

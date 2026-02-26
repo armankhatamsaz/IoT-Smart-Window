@@ -7,69 +7,78 @@ from flask import Flask, jsonify
 
 WRITE_API_KEY = "NISAWCFMEYGTH44W"
 READ_API_KEY = "M45BE295HJ63IT3T"
-# آیدی کانال رو اینجا جایگذاری کن
 CHANNEL_ID = "3279973" 
 
 BROKER_ADDRESS = "broker.hivemq.com"
 PORT = 1883
 
-# حافظه موقت برای ذخیره آخرین دیتای سنسورها
-sensor_data = {"field1": None, "field2": None, "field3": None}
+# حافظه موقت برای ذخیره 6 دیتا (داخل و بیرون)
+sensor_data = {
+    "field1": None, "field2": None, "field3": None, # Indoor
+    "field4": None, "field5": None, "field6": None  # Outdoor
+}
 
-# --- بخش آپلود به ThingSpeak (گوش دادن به MQTT) --- [cite: 104]
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("✅ ThingSpeak Adaptor connected to MQTT!")
-        # سابسکرایب به تاپیک‌های اندازه‌گیری [cite: 104]
-        client.subscribe("home/sensor/temp/indoor")
-        client.subscribe("home/sensor/hum/indoor")
-        client.subscribe("home/sensor/light/indoor")
+        print("✅ ThingSpeak Adaptor Connected! Listening to all sensors...")
+        # سابسکرایب به تمام تاپیک‌های سنسورها
+        client.subscribe("home/sensor/+/+")
+    else:
+        print(f"❌ Connection failed: {rc}")
 
 def on_message(client, userdata, msg):
     topic = msg.topic
-    payload = json.loads(msg.payload.decode())
-    value = payload.get("value")
+    try:
+        payload = json.loads(msg.payload.decode())
+        
+        # تشخیص فرمت (دیکشنری یا عدد خالی)
+        if isinstance(payload, dict): value = payload.get("value")
+        else: value = float(payload)
+            
+        if value is None: return
 
-    # آپدیت کردن حافظه موقت با آخرین مقادیر
-    if "temp" in topic:
-        sensor_data["field1"] = value
-    elif "hum" in topic:
-        sensor_data["field2"] = value
-    elif "light" in topic:
-        sensor_data["field3"] = value
+        # تخصیص داده‌ها به فیلدهای متناظر در ThingSpeak
+        if "temp/indoor" in topic: sensor_data["field1"] = value
+        elif "hum/indoor" in topic: sensor_data["field2"] = value
+        elif "light/indoor" in topic: sensor_data["field3"] = value
+        elif "temp/outdoor" in topic: sensor_data["field4"] = value
+        elif "hum/outdoor" in topic: sensor_data["field5"] = value
+        elif "light/outdoor" in topic: sensor_data["field6"] = value
+    except:
+        pass
 
-mqtt_client = mqtt.Client(client_id="ThingSpeak_Adaptor_Service")
+mqtt_client = mqtt.Client(client_id="ThingSpeak_Adaptor_V2")
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
 mqtt_client.connect(BROKER_ADDRESS, PORT, 60)
 mqtt_client.loop_start()
 
-# تابعی که هر 16 ثانیه دیتا رو به کلود میفرسته تا محدودیت اکانت رایگان دور زده بشه
+# تابعی که هر 16 ثانیه کل 6 دیتا رو یکجا به کلود می‌فرسته
 def upload_worker():
     while True:
         time.sleep(16)
         if any(v is not None for v in sensor_data.values()):
             url = f"https://api.thingspeak.com/update?api_key={WRITE_API_KEY}"
-            if sensor_data["field1"] is not None: url += f"&field1={sensor_data['field1']}"
-            if sensor_data["field2"] is not None: url += f"&field2={sensor_data['field2']}"
-            if sensor_data["field3"] is not None: url += f"&field3={sensor_data['field3']}"
+            
+            # چسباندن تمام فیلدهایی که مقدار دارند به آدرس
+            for i in range(1, 7):
+                field_key = f"field{i}"
+                if sensor_data[field_key] is not None:
+                    url += f"&{field_key}={sensor_data[field_key]}"
             
             try:
                 response = requests.get(url)
                 if response.status_code == 200 and response.text != "0":
-                    print(f"☁️ Uploaded to Cloud -> Temp: {sensor_data['field1']}, Hum: {sensor_data['field2']}, Light: {sensor_data['field3']}")
+                    print(f"☁️ Uploaded to Cloud -> IN({sensor_data['field1']}°C) | OUT({sensor_data['field4']}°C)")
             except Exception as e:
                 print(f"❌ Error uploading to ThingSpeak: {e}")
 
-# اجرای عملیات آپلود در پس‌زمینه
 threading.Thread(target=upload_worker, daemon=True).start()
 
-# --- بخش REST API (ارائه سرویس وب برای تاریخچه) --- [cite: 104]
 app = Flask(__name__)
 
 @app.route('/history', methods=['GET'])
 def get_history():
-    # دریافت اندازه‌گیری‌های تاریخی از طریق REST API [cite: 107]
     url = f"https://api.thingspeak.com/channels/{CHANNEL_ID}/feeds.json?api_key={READ_API_KEY}&results=10"
     try:
         response = requests.get(url)
