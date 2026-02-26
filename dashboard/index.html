@@ -56,7 +56,7 @@
         .hidden-view { display: none !important; }
     </style>
 </head>
-<body class="bg-background-light text-slate-900 font-display min-h-screen overflow-x-hidden relative">
+<body class="bg-background-light text-slate-900 font-display h-screen overflow-hidden relative">
 
 <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-background-light overflow-hidden">
     <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
@@ -121,11 +121,13 @@
             </button>
         </header>
 
-        <div id="view-home" class="flex-1 overflow-y-auto p-4 lg:p-8 pt-2">
-            <div class="grid grid-cols-12 gap-6 max-w-[1600px] mx-auto pb-8">
-                <div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
-                    <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[400px]">
-                        <div class="flex justify-between items-start mb-4 z-10">
+        <div id="view-home" class="flex-1 overflow-hidden p-4 lg:p-8 pt-0">
+            <div class="grid grid-cols-12 gap-6 h-full max-w-[1600px] mx-auto pb-4">
+                
+                <div class="col-span-12 lg:col-span-8 flex flex-col gap-6 h-full">
+                    
+                    <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[200px]">
+                        <div class="flex justify-between items-start mb-4 z-10 shrink-0">
                             <div>
                                 <h2 class="text-lg font-bold text-slate-800">Living Room Window</h2>
                                 <p class="text-slate-500 text-sm">Facing South-East • Actively Adjusting</p>
@@ -148,7 +150,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
                         <div id="btn-open" class="neumorphic-button h-20 rounded-2xl flex items-center justify-center gap-3">
                             <div class="icon-bg w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 transition-all">
                                 <span class="material-symbols-outlined">meeting_room</span>
@@ -163,13 +165,26 @@
                             <span class="btn-text font-semibold text-lg text-slate-700">Close Window</span>
                         </div>
                     </div>
+
+                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col h-[220px] shrink-0">
+                        <div class="flex justify-between items-center mb-4 shrink-0">
+                            <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">history</span> System Logs
+                            </h3>
+                        </div>
+                        <div id="activity-log" class="flex-1 overflow-y-auto space-y-3 pr-2 flex flex-col justify-start">
+                            <div class="text-sm text-slate-400 italic">Waiting for system actions...</div>
+                        </div>
+                    </div>
+
                 </div>
 
-                <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
-                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col gap-4">
-                        <h3 class="text-slate-800 font-bold text-lg mb-0">Indoor Environment</h3>
+                <div class="col-span-12 lg:col-span-4 flex flex-col gap-6 h-full">
+                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col gap-4 h-full overflow-y-auto">
                         
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+                        <h3 class="text-slate-800 font-bold text-lg mb-0 shrink-0">Indoor Environment</h3>
+                        
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
                             <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                                 <span class="material-symbols-outlined">thermostat</span>
                             </div>
@@ -185,7 +200,7 @@
                             </div>
                         </div>
                         
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
                             <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
                                 <span class="material-symbols-outlined">water_drop</span>
                             </div>
@@ -201,7 +216,7 @@
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 mb-2">
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 mb-2 shrink-0">
                             <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
                                 <span class="material-symbols-outlined">light_mode</span>
                             </div>
@@ -217,9 +232,9 @@
                             </div>
                         </div>
 
-                        <h3 class="text-slate-800 font-bold text-lg mb-0 mt-2 border-t pt-4">Outdoor Environment</h3>
+                        <h3 class="text-slate-800 font-bold text-lg mb-0 mt-2 border-t pt-4 shrink-0">Outdoor Environment</h3>
                         
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
                             <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                                 <span class="material-symbols-outlined">device_thermostat</span>
                             </div>
@@ -235,7 +250,7 @@
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
                             <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
                                 <span class="material-symbols-outlined">humidity_percentage</span>
                             </div>
@@ -250,17 +265,7 @@
                                 <svg class="w-full h-full stroke-teal-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 25 Q 15 35, 30 20 T 64 15"></path></svg>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex-1 flex flex-col min-h-[250px]">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary">history</span> System Logs
-                            </h3>
-                        </div>
-                        <div id="activity-log" class="flex-1 overflow-y-auto space-y-3 pr-2 flex flex-col justify-start">
-                            <div class="text-sm text-slate-400 italic">Waiting for system actions...</div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -322,10 +327,7 @@
     btnLogout.addEventListener('click', () => {
         appWrapper.classList.add('hidden-view');
         loginOverlay.classList.remove('hidden-view');
-        // Optional: Disconnect MQTT on logout for security
-        // if(mqttClient) { mqttClient.end(); mqttClient = null; }
     });
-
 
     // --- 1. Tab Switching Logic ---
     const navHome = document.getElementById('nav-home');
@@ -411,7 +413,7 @@
                 
                 else if (topic === 'home/sensor/temp/outdoor') document.getElementById('val-temp-out').innerText = value;
                 else if (topic === 'home/sensor/hum/outdoor') document.getElementById('val-hum-out').innerText = value;
-                else if (topic === 'home/sensor/light/outdoor') document.getElementById('cam-lux').innerText = value + ' lx'; // Showing light out on camera
+                else if (topic === 'home/sensor/light/outdoor') document.getElementById('cam-lux').innerText = value + ' lx';
                 
                 else if (topic === 'home/actuator/window') {
                     if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
@@ -477,7 +479,7 @@
                     {
                         label: 'Indoor Temp (°C)',
                         data: temps_in,
-                        borderColor: '#4f46e5', // Indigo
+                        borderColor: '#4f46e5',
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
@@ -486,7 +488,7 @@
                     {
                         label: 'Outdoor Temp (°C)',
                         data: temps_out,
-                        borderColor: '#f59e0b', // Amber
+                        borderColor: '#f59e0b',
                         backgroundColor: 'rgba(245, 158, 11, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
@@ -495,7 +497,7 @@
                     {
                         label: 'Indoor Hum (%)',
                         data: hums_in,
-                        borderColor: '#0d9488', // Teal
+                        borderColor: '#0d9488',
                         backgroundColor: 'rgba(13, 148, 136, 0.0)',
                         borderWidth: 2,
                         borderDash: [5, 5],
@@ -505,7 +507,7 @@
                     {
                         label: 'Outdoor Hum (%)',
                         data: hums_out,
-                        borderColor: '#e11d48', // Rose
+                        borderColor: '#e11d48',
                         backgroundColor: 'rgba(225, 29, 72, 0.0)',
                         borderWidth: 2,
                         borderDash: [5, 5],
