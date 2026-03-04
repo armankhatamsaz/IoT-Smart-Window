@@ -19,6 +19,24 @@
             "mqtt_topic": "home/sensor/light/indoor"
         },
         {
+            "device_id": "temp_out_01",
+            "type": "Temperature",
+            "location": "Outdoor",
+            "mqtt_topic": "home/sensor/temp/outdoor"
+        },
+        {
+            "device_id": "hum_out_01",
+            "type": "Humidity",
+            "location": "Outdoor",
+            "mqtt_topic": "home/sensor/hum/outdoor"
+        },
+        {
+            "device_id": "light_out_01",
+            "type": "Light",
+            "location": "Outdoor",
+            "mqtt_topic": "home/sensor/light/outdoor"
+        },
+        {
             "device_id": "window_actuator_01",
             "type": "Actuator",
             "location": "Living Room",
