@@ -1,44 +1,50 @@
 import json
 import os
-from flask import Flask, jsonify, request
+import cherrypy
 
-app = Flask(__name__)
 CATALOG_FILE = 'catalog.json'
 
-# این تابع فایل جیسون رو میخونه تا اطلاعات قبلی از بین نره
-def load_catalog():
-    if os.path.exists(CATALOG_FILE):
-        with open(CATALOG_FILE, 'r') as f:
-            return json.load(f)
-    return {"devices": [], "services": []}
+class DeviceRegistry:
+    def __init__(self):
+        # هنگام بالا آمدن کلاس، اگر فایل وجود نداشت آن را می‌سازد
+        if not os.path.exists(CATALOG_FILE):
+            self.save_catalog({"devices": [], "services": []})
 
-# این تابع اطلاعات جدید رو توی فایل ذخیره میکنه
-def save_catalog(data):
-    with open(CATALOG_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+    def load_catalog(self):
+        if os.path.exists(CATALOG_FILE):
+            with open(CATALOG_FILE, 'r') as f:
+                return json.load(f)
+        return {"devices": [], "services": []}
 
-@app.route('/', methods=['GET'])
-def home():
-    return jsonify({"message": "Welcome to the Smart Window Device & Service Registry!"})
+    def save_catalog(self, data):
+        with open(CATALOG_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
 
-# گرفتن لیست دستگاه‌ها
-@app.route('/devices', methods=['GET'])
-def get_devices():
-    catalog = load_catalog()
-    return jsonify(catalog["devices"])
+    # مسیر اصلی سرور (http://localhost:8080/)
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def index(self):
+        return {"message": "Welcome to the Smart Window Device & Service Registry (OOP & CherryPy)!"}
 
-# ثبت یک دستگاه جدید (سنسور یا اکچویتور)
-@app.route('/devices', methods=['POST'])
-def register_device():
-    new_device = request.get_json()
-    catalog = load_catalog()
-    catalog["devices"].append(new_device)
-    save_catalog(catalog)
-    return jsonify({"message": "Device registered successfully!", "device": new_device}), 201
+    # مسیر مدیریت دستگاه‌ها (http://localhost:8080/devices)
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def devices(self):
+        if cherrypy.request.method == 'GET':
+            catalog = self.load_catalog()
+            return catalog["devices"]
+        
+        elif cherrypy.request.method == 'POST':
+            new_device = cherrypy.request.json
+            catalog = self.load_catalog()
+            catalog["devices"].append(new_device)
+            self.save_catalog(catalog)
+            cherrypy.response.status = 201
+            return {"message": "Device registered successfully!", "device": new_device}
 
 if __name__ == '__main__':
-    # اگه فایل دیتابیس وجود نداشت، همون اول یکی میسازه
-    if not os.path.exists(CATALOG_FILE):
-        save_catalog({"devices": [], "services": []})
-    
-    app.run(port=8080, debug=True)
+    # تنظیم پورت روی 8080 و دسترسی برای همه IP ها (جهت سازگاری با داکر در آینده)
+    cherrypy.config.update({'server.socket_port': 8080, 'server.socket_host': '0.0.0.0'})
+    # استارت سرور با کلاس DeviceRegistry
+    cherrypy.quickstart(DeviceRegistry())
