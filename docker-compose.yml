@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # 1. سرویس رجیستری (سرور دفترچه تلفن)
+  registry:
+    build: ./registry
+    command: python main.py
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./registry/catalog.json:/app/catalog.json
+
+  # 2. اسکریپت ثبت خودکار سنسورها (فقط یک بار اجرا میشه و بسته میشه)
+  init_registry:
+    build: ./registry
+    command: python register_devices.py
+    depends_on:
+      - registry
+    restart: "no"
+
+  # 3. سرویس سنسورها و اکچویتور (Gateway)
+  gateway:
+    build: ./gateway
+    command: python connector.py
+    depends_on:
+      - registry
+
+  # 4. سرویس مغز متفکر (Analyzer)
+  analyzer:
+    build: ./control_logic
+    command: python analyzer.py
+    depends_on:
+      - gateway
+
+  # 5. سرویس سینک ابری (ThingSpeak)
+  thingspeak_adaptor:
+    build: ./thingspeak_adaptor
+    command: python adaptor.py
+    ports:
+      - "5000:5000"
+
+  # 6. سرویس ربات تلگرام
+  telegram_bot:
+    build: ./telegram_bot
+    command: python bot.py
