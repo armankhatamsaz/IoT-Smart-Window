@@ -67,14 +67,15 @@
             <span class="material-symbols-outlined text-3xl">lock</span>
         </div>
         <h2 class="text-2xl font-bold text-slate-800 mb-2">System Login</h2>
-        <p class="text-slate-500 text-sm mb-8 text-center">Please enter the admin password to access the control center.</p>
+        <p class="text-slate-500 text-sm mb-6 text-center">Authenticate via Smart Home Registry</p>
         
+        <input type="text" id="login-user" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Username (e.g. user1)">
         <input type="password" id="login-pass" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Password">
         
-        <p id="login-error" class="text-rose-500 text-xs mb-4 hidden-view font-semibold">❌ Incorrect password. Try again.</p>
+        <p id="login-error" class="text-rose-500 text-xs mb-4 hidden-view font-semibold">❌ Invalid credentials or Registry offline.</p>
 
         <button id="btn-login" class="neumorphic-button w-full rounded-xl py-3 font-bold text-primary flex items-center justify-center gap-2">
-            <span>Login Securely</span>
+            <span id="login-btn-text">Login Securely</span>
             <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
         </button>
     </div>
@@ -97,7 +98,7 @@
             </button>
         </nav>
         <div class="mt-auto hidden lg:flex w-full justify-center">
-            <div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden" style="background-image: url('https://ui-avatars.com/api/?name=Arman&background=2463eb&color=fff'); background-size: cover;"></div>
+            <div id="user-avatar" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-white font-bold bg-primary shadow-md uppercase">U</div>
         </div>
     </aside>
 
@@ -129,7 +130,8 @@
                     <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[250px] lg:min-h-[200px]">
                         <div class="flex justify-between items-start mb-4 z-10 shrink-0">
                             <div>
-                                <h2 class="text-lg font-bold text-slate-800">Living Room Window</h2>
+                                <select id="room-selector" class="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-lg font-bold text-slate-800 border border-slate-200 shadow-sm cursor-pointer outline-none mb-1">
+                                    </select>
                                 <p class="text-slate-500 text-sm">Facing South-East • Actively Adjusting</p>
                             </div>
                             <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-primary border border-white/50 shadow-sm flex items-center gap-1">
@@ -195,9 +197,6 @@
                                     <span class="text-sm text-slate-500">°C</span>
                                 </div>
                             </div>
-                            <div class="h-10 w-16">
-                                <svg class="w-full h-full stroke-indigo-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 20 Q 10 30, 20 15 T 40 25 T 64 10"></path></svg>
-                            </div>
                         </div>
                         
                         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
@@ -211,9 +210,6 @@
                                     <span class="text-sm text-slate-500">%</span>
                                 </div>
                             </div>
-                            <div class="h-10 w-16">
-                                <svg class="w-full h-full stroke-teal-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 25 Q 15 35, 30 20 T 64 15"></path></svg>
-                            </div>
                         </div>
 
                         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 mb-2 shrink-0">
@@ -226,9 +222,6 @@
                                     <h4 id="val-light" class="text-2xl font-bold text-slate-800">--</h4>
                                     <span class="text-sm text-slate-500">Lux</span>
                                 </div>
-                            </div>
-                            <div class="h-10 w-16">
-                                <svg class="w-full h-full stroke-amber-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 35 L 10 30 L 20 10 L 30 15 L 40 5 L 64 0"></path></svg>
                             </div>
                         </div>
 
@@ -245,9 +238,6 @@
                                     <span class="text-sm text-slate-500">°C</span>
                                 </div>
                             </div>
-                            <div class="h-10 w-16">
-                                <svg class="w-full h-full stroke-indigo-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 20 Q 10 30, 20 15 T 40 25 T 64 10"></path></svg>
-                            </div>
                         </div>
 
                         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
@@ -260,9 +250,6 @@
                                     <h4 id="val-hum-out" class="text-2xl font-bold text-slate-800">--</h4>
                                     <span class="text-sm text-slate-500">%</span>
                                 </div>
-                            </div>
-                            <div class="h-10 w-16">
-                                <svg class="w-full h-full stroke-teal-500 fill-none stroke-2" viewBox="0 0 64 40"><path d="M0 25 Q 15 35, 30 20 T 64 15"></path></svg>
                             </div>
                         </div>
 
@@ -277,7 +264,7 @@
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
-                            <p class="text-slate-500 text-sm">Powered by ThingSpeak (Auto-updates every 20s)</p>
+                            <p class="text-slate-500 text-sm" id="ts-channel-info">Powered by ThingSpeak</p>
                         </div>
                         <button id="btn-refresh-history" class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/20 transition">
                             Refresh Now
@@ -293,40 +280,101 @@
 </div>
 
 <script>
-    let historyInterval = null;
-    let mqttClient = null;
+    // --- متغیرهای کلیدی سیستم ---
+    const REGISTRY_URL = 'http://127.0.0.1:8080/config'; // آدرس کاتالوگ مرکزی
+    
+    // اطلاعات کانال ThingSpeak (اینا رو استادانه اینجا میذاریم تا فقط از یک کانالِ اصلی تاریخچه رو بخونه)
+    const TS_CHANNEL_ID = "3279973"; 
+    const TS_READ_KEY = "M45BE295HJ63IT3T"; 
 
-    // --- 0. Login Logic ---
+    let mqttClient = null;
+    let currentUser = null;
+    let selectedRoomKey = "";
+    
+    // کش کردن دیتای سنسورها به صورت تفکیک شده { "livingroom": {temp: 25, hum: 40}, "outdoor": {...} }
+    let sensorDataCache = {
+        outdoor: { temp: "--", hum: "--", light: "--" }
+    };
+    let historyInterval = null;
+
+    // --- 0. Login & Service Discovery Logic ---
     const loginOverlay = document.getElementById('login-overlay');
     const appWrapper = document.getElementById('app-wrapper');
     const btnLogin = document.getElementById('btn-login');
+    const loginUser = document.getElementById('login-user');
     const loginPass = document.getElementById('login-pass');
     const loginError = document.getElementById('login-error');
     const btnLogout = document.getElementById('btn-logout');
+    const roomSelector = document.getElementById('room-selector');
 
     btnLogin.addEventListener('click', handleLogin);
-    loginPass.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
+    loginPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
 
-    function handleLogin() {
-        if (loginPass.value === 'admin') {
-            loginOverlay.classList.add('hidden-view');
-            appWrapper.classList.remove('hidden-view');
-            loginError.classList.add('hidden-view');
-            loginPass.value = '';
+    async function handleLogin() {
+        const uName = loginUser.value.trim();
+        const uPass = loginPass.value.trim();
+        document.getElementById('login-btn-text').innerText = "Connecting to Registry...";
+
+        try {
+            // Service Discovery: گرفتن تنظیمات و یوزرها از کاتالوگ
+            const response = await fetch(REGISTRY_URL);
+            const config = await response.json();
             
-            // Start the system only after successful login
-            if(!mqttClient) initSystem(); 
-        } else {
+            // احراز هویت
+            const user = config.users.find(u => u.username === uName && u.password === uPass);
+            
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-avatar').innerText = user.username.charAt(0);
+                
+                // پر کردن دراپ‌دان بر اساس دسترسی کاربر
+                roomSelector.innerHTML = '';
+                user.allowed_rooms.forEach(room => {
+                    if(room !== "Outdoor") {
+                        const opt = document.createElement('option');
+                        opt.value = room.replace(" ", "").toLowerCase();
+                        opt.textContent = room;
+                        roomSelector.appendChild(opt);
+                        
+                        // مقداردهی اولیه به کش
+                        sensorDataCache[opt.value] = { temp: "--", hum: "--", light: "--" };
+                    }
+                });
+                
+                selectedRoomKey = roomSelector.value;
+
+                loginOverlay.classList.add('hidden-view');
+                appWrapper.classList.remove('hidden-view');
+                loginError.classList.add('hidden-view');
+                loginPass.value = '';
+                
+                // ساختن آدرس وب‌سوکت بروکر داینامیک!
+                const wsUrl = `wss://${config.broker.host}:8884/mqtt`;
+                if(!mqttClient) initSystem(wsUrl); 
+            } else {
+                throw new Error("Invalid User");
+            }
+        } catch (err) {
+            console.error(err);
             loginError.classList.remove('hidden-view');
-            loginPass.value = '';
+            document.getElementById('login-btn-text').innerText = "Login Securely";
         }
     }
 
     btnLogout.addEventListener('click', () => {
         appWrapper.classList.add('hidden-view');
         loginOverlay.classList.remove('hidden-view');
+        loginUser.value = '';
+        if(mqttClient) {
+            mqttClient.end();
+            mqttClient = null;
+        }
+    });
+
+    // وقتی کاربر اتاق رو عوض میکنه
+    roomSelector.addEventListener('change', (e) => {
+        selectedRoomKey = e.target.value;
+        updateUIValues();
     });
 
     // --- 1. Tab Switching Logic ---
@@ -379,16 +427,33 @@
     }
 
     btnOpen.addEventListener('click', () => {
-        if(mqttClient) mqttClient.publish('home/actuator/window', JSON.stringify({command: "OPEN", reason: "Web Dashboard Auth User"}));
+        if(mqttClient && selectedRoomKey) {
+            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "OPEN", reason: currentUser.username}));
+        }
     });
 
     btnClose.addEventListener('click', () => {
-        if(mqttClient) mqttClient.publish('home/actuator/window', JSON.stringify({command: "CLOSE", reason: "Web Dashboard Auth User"}));
+        if(mqttClient && selectedRoomKey) {
+            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "CLOSE", reason: currentUser.username}));
+        }
     });
 
+    // آپدیت کردن مقادیر روی صفحه
+    function updateUIValues() {
+        const indoor = sensorDataCache[selectedRoomKey] || {temp: "--", hum: "--", light: "--"};
+        const outdoor = sensorDataCache["outdoor"];
+        
+        document.getElementById('val-temp').innerText = indoor.temp;
+        document.getElementById('val-hum').innerText = indoor.hum;
+        document.getElementById('val-light').innerText = indoor.light;
+        
+        document.getElementById('val-temp-out').innerText = outdoor.temp;
+        document.getElementById('val-hum-out').innerText = outdoor.hum;
+        document.getElementById('cam-lux').innerText = outdoor.light + ' lx';
+    }
+
     // --- 3. MQTT Logic Initialization ---
-    function initSystem() {
-        const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
+    function initSystem(brokerUrl) {
         mqttClient = mqtt.connect(brokerUrl);
 
         mqttClient.on('connect', () => {
@@ -396,26 +461,33 @@
             document.getElementById('mqtt-dot').classList.replace('bg-red-500', 'bg-emerald-500');
             const txt = document.getElementById('mqtt-text');
             txt.classList.replace('text-red-600', 'text-emerald-600');
-            txt.innerText = 'MQTT Connected';
+            txt.innerText = 'Connected';
 
-            mqttClient.subscribe('home/sensor/+/+');
-            mqttClient.subscribe('home/actuator/window');
+            // به لطف معماری داینامیک، با یه خط کد دیتای همه اتاق‌ها رو می‌گیریم
+            mqttClient.subscribe('home/+/sensor/+');
+            mqttClient.subscribe('home/+/actuator/window');
         });
 
         mqttClient.on('message', (topic, message) => {
             try {
+                const parts = topic.split('/');
+                const zone = parts[1]; // livingroom, bedroom1, outdoor
+                const type = parts[2]; // sensor, actuator
+                const specific = parts[3]; // temp, hum, window
+                
                 const payload = JSON.parse(message.toString());
-                const value = payload.value !== undefined ? payload.value : parseFloat(payload);
-                
-                if (topic === 'home/sensor/temp/indoor') document.getElementById('val-temp').innerText = value;
-                else if (topic === 'home/sensor/hum/indoor') document.getElementById('val-hum').innerText = value;
-                else if (topic === 'home/sensor/light/indoor') document.getElementById('val-light').innerText = value;
-                
-                else if (topic === 'home/sensor/temp/outdoor') document.getElementById('val-temp-out').innerText = value;
-                else if (topic === 'home/sensor/hum/outdoor') document.getElementById('val-hum-out').innerText = value;
-                else if (topic === 'home/sensor/light/outdoor') document.getElementById('cam-lux').innerText = value + ' lx';
-                
-                else if (topic === 'home/actuator/window') {
+
+                if (type === 'sensor') {
+                    if (!sensorDataCache[zone]) sensorDataCache[zone] = {};
+                    sensorDataCache[zone][specific] = payload.value !== undefined ? payload.value : parseFloat(payload);
+                    
+                    // فقط اگه دیتای دریافتی مال اتاق انتخابی یا بیرون بود، UI رو آپدیت کن
+                    if (zone === selectedRoomKey || zone === "outdoor") {
+                        updateUIValues();
+                    }
+                } 
+                else if (type === 'actuator' && zone === selectedRoomKey) {
+                    // فقط دکمه‌های اتاقی که الان روش هستیم رو آپدیت کن
                     if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
                     if(payload.command === "CLOSE") setActiveButton(btnClose, btnOpen);
 
@@ -429,7 +501,7 @@
                     logEntry.className = "flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse shrink-0";
                     logEntry.innerHTML = `
                         <span class="text-slate-500 font-mono text-xs">${timeString}</span>
-                        <span class="font-bold ${colorClass}">${payload.command} WINDOW</span>
+                        <span class="font-bold ${colorClass}">${payload.command} [${zone.toUpperCase()}]</span>
                     `;
                     
                     logContainer.prepend(logEntry);
@@ -444,8 +516,6 @@
     let historyChartInstance = null;
     
     async function loadThingSpeakData() {
-        const TS_CHANNEL_ID = "3279973"; 
-        const TS_READ_KEY = "M45BE295HJ63IT3T"; 
         const url = `https://api.thingspeak.com/channels/${TS_CHANNEL_ID}/feeds.json?api_key=${TS_READ_KEY}&results=20`;
 
         try {
@@ -456,10 +526,12 @@
                 const d = new Date(f.created_at);
                 return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
             });
+            
+            // نمایش دیتای پذیرایی و محیط بیرون (طبق مپینگ فایل تنظیمات آداپتور)
             const temps_in = data.feeds.map(f => parseFloat(f.field1));
             const hums_in = data.feeds.map(f => parseFloat(f.field2));
-            const temps_out = data.feeds.map(f => parseFloat(f.field4));
-            const hums_out = data.feeds.map(f => parseFloat(f.field5));
+            const temps_out = data.feeds.map(f => parseFloat(f.field7));
+            const hums_out = data.feeds.map(f => parseFloat(f.field8));
 
             renderChart(labels, temps_in, hums_in, temps_out, hums_out);
         } catch (error) {
@@ -477,7 +549,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Indoor Temp (°C)',
+                        label: 'Indoor Temp (°C) [Living Room]',
                         data: temps_in,
                         borderColor: '#4f46e5',
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',

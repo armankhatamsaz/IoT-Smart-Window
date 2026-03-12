@@ -1,0 +1,6 @@
+{
+    "registry_url": "http://registry:8080",
+    "zone_name": "Bedroom 2",
+    "sensors": ["temp", "hum", "light"],
+    "has_actuator": true
+}

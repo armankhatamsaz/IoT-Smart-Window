@@ -1,0 +1,30 @@
+{
+    "registry_url": "http://registry:8080",
+    "service_name": "ThingSpeak Cloud Adaptor",
+    "channels": [
+        {
+            "name": "Channel 1 - Temp & Hum",
+            "api_key": "NISAWCFMEYGTH44W",
+            "mapping": {
+                "home/livingroom/sensor/temp": "field1",
+                "home/livingroom/sensor/hum": "field2",
+                "home/bedroom1/sensor/temp": "field3",
+                "home/bedroom1/sensor/hum": "field4",
+                "home/bedroom2/sensor/temp": "field5",
+                "home/bedroom2/sensor/hum": "field6",
+                "home/outdoor/sensor/temp": "field7",
+                "home/outdoor/sensor/hum": "field8"
+            }
+        },
+        {
+            "name": "Channel 2 - Light Sensors",
+            "api_key": "KAH1R7H9L9Z9W2G1",
+            "mapping": {
+                "home/livingroom/sensor/light": "field1",
+                "home/bedroom1/sensor/light": "field2",
+                "home/bedroom2/sensor/light": "field3",
+                "home/outdoor/sensor/light": "field4"
+            }
+        }
+    ]
+}
