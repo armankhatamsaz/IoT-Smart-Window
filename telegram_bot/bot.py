@@ -90,6 +90,11 @@ class SmartHomeBot:
 
         print(f"📩 Message from {chat_id}: {command}")
 
+        # اضافه کردن قابلیت هندل کردن /start
+        if command == '/start':
+            self.bot.sendMessage(chat_id, "🤖 Welcome to Smart Home Bot!\n🔒 Please login first.\nType: /login <username> <password>\n(Example: /login user1 1234)")
+            return
+
         # دستور ورود کاربر
         if command.startswith('/login'):
             parts = command.split()
