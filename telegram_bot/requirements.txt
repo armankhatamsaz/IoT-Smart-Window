@@ -1,2 +1,4 @@
-paho-mqtt
-pyTelegramBotAPI
+telepot
+paho-mqtt==1.6.1
+requests
+urllib3==1.26.15

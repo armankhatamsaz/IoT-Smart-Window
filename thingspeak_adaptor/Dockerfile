@@ -1,12 +1,14 @@
-# استفاده از نسخه سبک پایتون
 FROM python:3.9-slim
 
-# تنظیم پوشه کاری داخل کانتینر
+# این خط باعث میشه لاگ‌های پایتون درجا تو ترمینال چاپ بشن و گیر نکنن
+ENV PYTHONUNBUFFERED=1 
+
 WORKDIR /app
 
-# کپی کردن فایل نیازمندی‌ها و نصب آن‌ها
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# کپی کردن تمام فایل‌های پایتون به داخل کانتینر
 COPY . .
+
+# برای رجیستری: CMD ["python", "main.py"]
+# برای بقیه: CMD ["python", "اسم_فایل_اصلی.py"]

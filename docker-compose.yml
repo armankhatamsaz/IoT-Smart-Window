@@ -1,45 +1,81 @@
 version: '3.8'
 
 services:
-  # 1. سرویس رجیستری (سرور دفترچه تلفن)
+  # 1. سرور رجیستری (کاتالوگ)
   registry:
     build: ./registry
-    command: python main.py
+    container_name: smarthome_registry
     ports:
-      - "8080:8080"
-    volumes:
-      - ./registry/catalog.json:/app/catalog.json
+      - "8080:8080"  # این پورت رو باز می‌ذاریم تا دشبورد از روی مرورگرت بتونه باهاش حرف بزنه
+    command: python main.py
 
-  # 2. اسکریپت ثبت خودکار سنسورها (فقط یک بار اجرا میشه و بسته میشه)
-  init_registry:
-    build: ./registry
-    command: python register_devices.py
-    depends_on:
-      - registry
-    restart: "no"
-
-  # 3. سرویس سنسورها و اکچویتور (Gateway)
-  gateway:
+  # 2. کانکتور پذیرایی (Living Room)
+  gateway_livingroom:
     build: ./gateway
-    command: python connector.py
+    container_name: smarthome_gw_livingroom
+    environment:
+      - CONFIG_FILE=settings_livingroom.json
     depends_on:
       - registry
 
-  # 4. سرویس مغز متفکر (Analyzer)
+  # 3. کانکتور اتاق خواب 1 (Bedroom 1)
+  gateway_bedroom1:
+    build: ./gateway
+    container_name: smarthome_gw_bedroom1
+    environment:
+      - CONFIG_FILE=settings_bedroom1.json
+    depends_on:
+      - registry
+
+  # 4. کانکتور اتاق خواب 2 (Bedroom 2)
+  gateway_bedroom2:
+    build: ./gateway
+    container_name: smarthome_gw_bedroom2
+    environment:
+      - CONFIG_FILE=settings_bedroom2.json
+    depends_on:
+      - registry
+
+  # 5. کانکتور محیط بیرون (Outdoor)
+  gateway_outdoor:
+    build: ./gateway
+    container_name: smarthome_gw_outdoor
+    environment:
+      - CONFIG_FILE=settings_outdoor.json
+    depends_on:
+      - registry
+
+  # 6. مغز متفکر (Analyzer)
   analyzer:
-    build: ./control_logic
+    build: ./analyzer
+    container_name: smarthome_analyzer
     command: python analyzer.py
     depends_on:
-      - gateway
+      - registry
 
-  # 5. سرویس سینک ابری (ThingSpeak)
-  thingspeak_adaptor:
-    build: ./thingspeak_adaptor
-    command: python adaptor.py
-    ports:
-      - "5000:5000"
-
-  # 6. سرویس ربات تلگرام
+  # 7. ربات تلگرام
   telegram_bot:
     build: ./telegram_bot
+    container_name: smarthome_bot
     command: python bot.py
+    depends_on:
+      - registry
+
+  # 8. آداپتور ThingSpeak
+  adaptor:
+    build: ./adaptor
+    container_name: smarthome_adaptor
+    command: python adaptor.py
+    depends_on:
+      - registry
+
+  # 9. وب‌سرور برای اجرای دشبورد
+  dashboard:
+    image: python:3.9-slim
+    container_name: smarthome_dashboard
+    working_dir: /app
+    volumes:
+      - ./dashboard:/app
+    ports:
+      - "80:8000"
+    command: python -m http.server 8000
