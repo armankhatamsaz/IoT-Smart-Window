@@ -3,7 +3,6 @@ import json
 import requests
 import threading
 import telepot
-from telepot.loop import MessageLoop
 from telepot.namedtuple import ReplyKeyboardMarkup, KeyboardButton
 import paho.mqtt.client as mqtt
 
@@ -160,6 +159,25 @@ class SmartHomeBot:
             else:
                 self.bot.sendMessage(chat_id, "⛔ You don't have permission for this room.")
 
+    def custom_polling_loop(self):
+        """حلقه اختصاصی برای دور زدن باگِ کتابخونه Telepot"""
+        offset = None
+        while True:
+            try:
+                updates = self.bot.getUpdates(offset=offset)
+                for update in updates:
+                    # آپدیت کردن آفست برای اینکه تلگرام بفهمه پیام رو خوندیم و دوباره نفرستتش
+                    offset = update['update_id'] + 1
+                    
+                    # اگه پیام متنیِ عادی بود بفرستش برای پردازش، وگرنه ایگنورش کن
+                    if 'message' in update:
+                        self.handle_message(update['message'])
+                    else:
+                        print(f"⚠️ [Bot] Ignored system/non-text update from Telegram.")
+            except Exception as e:
+                pass # اگه خطای شبکه‌ای خورد، هیچی نگو و به کارت ادامه بده
+            time.sleep(1)
+    
     def start(self):
         # 1. رجیستر شدن و گرفتن اطلاعات شبکه
         self.discover_services()
@@ -167,9 +185,9 @@ class SmartHomeBot:
         # 2. استارت کردن MQTT تو بک‌گراند
         self.start_mqtt()
         
-        # 3. استارت کردن ربات تلگرام
-        MessageLoop(self.bot, self.handle_message).run_as_thread()
-        print("🤖 Telegram Bot is listening...")
+        # 3. استارت کردن حلقه دریافت پیام اختصاصی (به جای MessageLoop)
+        threading.Thread(target=self.custom_polling_loop, daemon=True).start()
+        print("🤖 Telegram Bot is listening (Bulletproof Mode)...")
         
         try:
             while True:

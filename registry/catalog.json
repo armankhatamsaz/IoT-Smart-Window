@@ -1,0 +1,71 @@
+{
+    "broker": {
+        "host": "broker.hivemq.com",
+        "port": 8000,
+        "transport": "websockets"
+    },
+    "users": [
+        {
+            "username": "user1",
+            "password": "1234",
+            "allowed_rooms": [
+                "Living Room",
+                "Bedroom 1"
+            ]
+        },
+        {
+            "username": "user2",
+            "password": "1234",
+            "allowed_rooms": [
+                "Living Room",
+                "Bedroom 2"
+            ]
+        }
+    ],
+    "devices": [
+        {
+            "device_id": "gateway_living_room",
+            "type": "Gateway",
+            "location": "Living Room",
+            "sensors": [
+                "temp",
+                "hum",
+                "light"
+            ],
+            "actuator": "window"
+        },
+        {
+            "device_id": "gateway_bedroom_1",
+            "type": "Gateway",
+            "location": "Bedroom 1",
+            "sensors": [
+                "temp",
+                "hum",
+                "light"
+            ],
+            "actuator": "window"
+        },
+        {
+            "device_id": "gateway_bedroom_2",
+            "type": "Gateway",
+            "location": "Bedroom 2",
+            "sensors": [
+                "temp",
+                "hum",
+                "light"
+            ],
+            "actuator": "window"
+        }
+    ],
+    "services": [
+        {
+            "service_name": "Smart Home Control Logic",
+            "description": "Monitors sensors and controls windows automatically",
+            "type": "Control Logic"
+        },
+        {
+            "service_name": "ThingSpeak Cloud Adaptor",
+            "type": "Data Logger"
+        }
+    ]
+}

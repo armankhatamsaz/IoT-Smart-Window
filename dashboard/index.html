@@ -106,7 +106,7 @@
         <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
         <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
         
-        <header class="flex items-center justify-between px-8 py-6 z-10 shrink-0">
+        <header class="flex items-center justify-between px-8 pt-6 pb-2 z-10 shrink-0">
             <div class="flex flex-col">
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Smart Window Control Center</h1>
                 <div class="flex items-center gap-2 mt-1">
@@ -122,6 +122,11 @@
             </button>
         </header>
 
+        <div id="room-tabs-container" class="px-8 pb-4 z-10 shrink-0 hidden-view w-full overflow-x-auto">
+            <div id="room-selector" class="flex gap-4">
+                </div>
+        </div>
+
         <div id="view-home" class="flex-1 overflow-y-auto p-4 lg:p-8 pt-0">
             <div class="grid grid-cols-12 gap-6 lg:h-full max-w-[1600px] mx-auto pb-4">
                 
@@ -130,8 +135,7 @@
                     <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[250px] lg:min-h-[200px]">
                         <div class="flex justify-between items-start mb-4 z-10 shrink-0">
                             <div>
-                                <select id="room-selector" class="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-lg font-bold text-slate-800 border border-slate-200 shadow-sm cursor-pointer outline-none mb-1">
-                                    </select>
+                                <h2 id="current-room-label" class="text-xl font-bold text-slate-800">Room</h2>
                                 <p class="text-slate-500 text-sm">Facing South-East • Actively Adjusting</p>
                             </div>
                             <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-primary border border-white/50 shadow-sm flex items-center gap-1">
@@ -258,13 +262,13 @@
             </div>
         </div>
 
-        <div id="view-history" class="hidden-view flex-1 overflow-y-auto p-4 lg:p-8 pt-2">
+        <div id="view-history" class="hidden-view flex-1 overflow-y-auto p-4 lg:p-8 pt-0">
             <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
                 <div class="glass-panel rounded-2xl p-6 shadow-glass flex-1 flex flex-col min-h-[500px]">
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
-                            <p class="text-slate-500 text-sm" id="ts-channel-info">Powered by ThingSpeak</p>
+                            <p class="text-slate-500 text-sm">Powered by ThingSpeak (Auto-updates every 20s)</p>
                         </div>
                         <button id="btn-refresh-history" class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/20 transition">
                             Refresh Now
@@ -280,24 +284,28 @@
 </div>
 
 <script>
-    // --- متغیرهای کلیدی سیستم ---
-    const REGISTRY_URL = 'http://127.0.0.1:8080/config'; // آدرس کاتالوگ مرکزی
-    
-    // اطلاعات کانال ThingSpeak (اینا رو استادانه اینجا میذاریم تا فقط از یک کانالِ اصلی تاریخچه رو بخونه)
+    const REGISTRY_URL = 'http://127.0.0.1:8080/config';
     const TS_CHANNEL_ID = "3279973"; 
     const TS_READ_KEY = "M45BE295HJ63IT3T"; 
+
+    // مپینگ فیلدهای تینگ‌اسپیک به اتاق‌ها (این راز داینامیک بودن نموداره!)
+    const roomFieldMap = {
+        "livingroom": { temp: "field1", hum: "field2" },
+        "bedroom1": { temp: "field3", hum: "field4" },
+        "bedroom2": { temp: "field5", hum: "field6" }
+    };
 
     let mqttClient = null;
     let currentUser = null;
     let selectedRoomKey = "";
     
-    // کش کردن دیتای سنسورها به صورت تفکیک شده { "livingroom": {temp: 25, hum: 40}, "outdoor": {...} }
+    // کش ایمن برای همه داده‌ها
     let sensorDataCache = {
         outdoor: { temp: "--", hum: "--", light: "--" }
     };
     let historyInterval = null;
 
-    // --- 0. Login & Service Discovery Logic ---
+    // --- 0. Login & Service Discovery ---
     const loginOverlay = document.getElementById('login-overlay');
     const appWrapper = document.getElementById('app-wrapper');
     const btnLogin = document.getElementById('btn-login');
@@ -305,7 +313,7 @@
     const loginPass = document.getElementById('login-pass');
     const loginError = document.getElementById('login-error');
     const btnLogout = document.getElementById('btn-logout');
-    const roomSelector = document.getElementById('room-selector');
+    const roomSelectorContainer = document.getElementById('room-selector');
 
     btnLogin.addEventListener('click', handleLogin);
     loginPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
@@ -316,39 +324,64 @@
         document.getElementById('login-btn-text').innerText = "Connecting to Registry...";
 
         try {
-            // Service Discovery: گرفتن تنظیمات و یوزرها از کاتالوگ
             const response = await fetch(REGISTRY_URL);
             const config = await response.json();
-            
-            // احراز هویت
             const user = config.users.find(u => u.username === uName && u.password === uPass);
             
             if (user) {
                 currentUser = user;
                 document.getElementById('user-avatar').innerText = user.username.charAt(0);
                 
-                // پر کردن دراپ‌دان بر اساس دسترسی کاربر
-                roomSelector.innerHTML = '';
-                user.allowed_rooms.forEach(room => {
+                // ساخت دکمه‌های نئومورفیک (جایگزین کشویی زشت)
+                roomSelectorContainer.innerHTML = '';
+                user.allowed_rooms.forEach((room, index) => {
                     if(room !== "Outdoor") {
-                        const opt = document.createElement('option');
-                        opt.value = room.replace(" ", "").toLowerCase();
-                        opt.textContent = room;
-                        roomSelector.appendChild(opt);
+                        const roomKey = room.replace(" ", "").toLowerCase();
                         
-                        // مقداردهی اولیه به کش
-                        sensorDataCache[opt.value] = { temp: "--", hum: "--", light: "--" };
+                        const btn = document.createElement('button');
+                        btn.className = `neumorphic-button px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${index === 0 ? 'neumorphic-pressed text-primary' : 'text-slate-500'}`;
+                        btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">meeting_room</span> ${room}`;
+                        
+                        // وقتی رو دکمه کلیک میشه
+                        btn.addEventListener('click', () => {
+                            // آپدیت استایل دکمه‌ها
+                            document.querySelectorAll('#room-selector button').forEach(b => {
+                                b.classList.remove('neumorphic-pressed', 'text-primary');
+                                b.classList.add('text-slate-500');
+                            });
+                            btn.classList.add('neumorphic-pressed', 'text-primary');
+                            btn.classList.remove('text-slate-500');
+
+                            // تغییر اتاق جاری
+                            selectedRoomKey = roomKey;
+                            document.getElementById('current-room-label').innerText = room;
+                            
+                            // آپدیت دیتا
+                            updateUIValues();
+                            
+                            // اگه تو تب نمودار بودیم، نمودار رو هم آپدیت کن!
+                            if (!document.getElementById('view-history').classList.contains('hidden-view')) {
+                                loadThingSpeakData();
+                            }
+                        });
+
+                        roomSelectorContainer.appendChild(btn);
+                        
+                        if (index === 0) {
+                            selectedRoomKey = roomKey;
+                            document.getElementById('current-room-label').innerText = room;
+                        }
+                        if (!sensorDataCache[roomKey]) sensorDataCache[roomKey] = { temp: "--", hum: "--", light: "--" };
                     }
                 });
-                
-                selectedRoomKey = roomSelector.value;
+
+                document.getElementById('room-tabs-container').classList.remove('hidden-view');
 
                 loginOverlay.classList.add('hidden-view');
                 appWrapper.classList.remove('hidden-view');
                 loginError.classList.add('hidden-view');
                 loginPass.value = '';
                 
-                // ساختن آدرس وب‌سوکت بروکر داینامیک!
                 const wsUrl = `wss://${config.broker.host}:8884/mqtt`;
                 if(!mqttClient) initSystem(wsUrl); 
             } else {
@@ -364,17 +397,12 @@
     btnLogout.addEventListener('click', () => {
         appWrapper.classList.add('hidden-view');
         loginOverlay.classList.remove('hidden-view');
+        document.getElementById('room-tabs-container').classList.add('hidden-view');
         loginUser.value = '';
         if(mqttClient) {
             mqttClient.end();
             mqttClient = null;
         }
-    });
-
-    // وقتی کاربر اتاق رو عوض میکنه
-    roomSelector.addEventListener('change', (e) => {
-        selectedRoomKey = e.target.value;
-        updateUIValues();
     });
 
     // --- 1. Tab Switching Logic ---
@@ -438,18 +466,20 @@
         }
     });
 
-    // آپدیت کردن مقادیر روی صفحه
+    // آپدیت کردن مقادیر روی صفحه (شامل سنسورهای بیرون)
     function updateUIValues() {
         const indoor = sensorDataCache[selectedRoomKey] || {temp: "--", hum: "--", light: "--"};
-        const outdoor = sensorDataCache["outdoor"];
+        const outdoor = sensorDataCache["outdoor"] || {temp: "--", hum: "--", light: "--"};
         
-        document.getElementById('val-temp').innerText = indoor.temp;
-        document.getElementById('val-hum').innerText = indoor.hum;
-        document.getElementById('val-light').innerText = indoor.light;
+        document.getElementById('val-temp').innerText = indoor.temp !== undefined ? indoor.temp : "--";
+        document.getElementById('val-hum').innerText = indoor.hum !== undefined ? indoor.hum : "--";
+        document.getElementById('val-light').innerText = indoor.light !== undefined ? indoor.light : "--";
         
-        document.getElementById('val-temp-out').innerText = outdoor.temp;
-        document.getElementById('val-hum-out').innerText = outdoor.hum;
-        document.getElementById('cam-lux').innerText = outdoor.light + ' lx';
+        document.getElementById('val-temp-out').innerText = outdoor.temp !== undefined ? outdoor.temp : "--";
+        document.getElementById('val-hum-out').innerText = outdoor.hum !== undefined ? outdoor.hum : "--";
+        
+        const luxElem = document.getElementById('cam-lux');
+        if (luxElem) luxElem.innerText = (outdoor.light !== undefined && outdoor.light !== "--") ? outdoor.light + ' lx' : "-- lx";
     }
 
     // --- 3. MQTT Logic Initialization ---
@@ -463,7 +493,6 @@
             txt.classList.replace('text-red-600', 'text-emerald-600');
             txt.innerText = 'Connected';
 
-            // به لطف معماری داینامیک، با یه خط کد دیتای همه اتاق‌ها رو می‌گیریم
             mqttClient.subscribe('home/+/sensor/+');
             mqttClient.subscribe('home/+/actuator/window');
         });
@@ -471,9 +500,9 @@
         mqttClient.on('message', (topic, message) => {
             try {
                 const parts = topic.split('/');
-                const zone = parts[1]; // livingroom, bedroom1, outdoor
-                const type = parts[2]; // sensor, actuator
-                const specific = parts[3]; // temp, hum, window
+                const zone = parts[1]; 
+                const type = parts[2]; 
+                const specific = parts[3]; 
                 
                 const payload = JSON.parse(message.toString());
 
@@ -481,13 +510,11 @@
                     if (!sensorDataCache[zone]) sensorDataCache[zone] = {};
                     sensorDataCache[zone][specific] = payload.value !== undefined ? payload.value : parseFloat(payload);
                     
-                    // فقط اگه دیتای دریافتی مال اتاق انتخابی یا بیرون بود، UI رو آپدیت کن
                     if (zone === selectedRoomKey || zone === "outdoor") {
                         updateUIValues();
                     }
                 } 
                 else if (type === 'actuator' && zone === selectedRoomKey) {
-                    // فقط دکمه‌های اتاقی که الان روش هستیم رو آپدیت کن
                     if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
                     if(payload.command === "CLOSE") setActiveButton(btnClose, btnOpen);
 
@@ -527,19 +554,22 @@
                 return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
             });
             
-            // نمایش دیتای پذیرایی و محیط بیرون (طبق مپینگ فایل تنظیمات آداپتور)
-            const temps_in = data.feeds.map(f => parseFloat(f.field1));
-            const hums_in = data.feeds.map(f => parseFloat(f.field2));
+            // داینامیک خوندن فیلدها بر اساس اتاقی که کاربر انتخاب کرده
+            const fields = roomFieldMap[selectedRoomKey] || roomFieldMap["livingroom"];
+            
+            const temps_in = data.feeds.map(f => parseFloat(f[fields.temp]));
+            const hums_in = data.feeds.map(f => parseFloat(f[fields.hum]));
             const temps_out = data.feeds.map(f => parseFloat(f.field7));
             const hums_out = data.feeds.map(f => parseFloat(f.field8));
 
-            renderChart(labels, temps_in, hums_in, temps_out, hums_out);
+            const roomName = document.getElementById('current-room-label').innerText;
+            renderChart(labels, temps_in, hums_in, temps_out, hums_out, roomName);
         } catch (error) {
             console.error("Error fetching ThingSpeak data:", error);
         }
     }
 
-    function renderChart(labels, temps_in, hums_in, temps_out, hums_out) {
+    function renderChart(labels, temps_in, hums_in, temps_out, hums_out, roomName) {
         const ctx = document.getElementById('historyChart').getContext('2d');
         if (historyChartInstance) historyChartInstance.destroy();
 
@@ -549,7 +579,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Indoor Temp (°C) [Living Room]',
+                        label: `Indoor Temp (°C) [${roomName}]`,
                         data: temps_in,
                         borderColor: '#4f46e5',
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
@@ -567,7 +597,7 @@
                         fill: true
                     },
                     {
-                        label: 'Indoor Hum (%)',
+                        label: `Indoor Hum (%) [${roomName}]`,
                         data: hums_in,
                         borderColor: '#0d9488',
                         backgroundColor: 'rgba(13, 148, 136, 0.0)',
