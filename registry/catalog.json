@@ -24,31 +24,20 @@
     ],
     "devices": [
         {
-            "device_id": "gateway_bedroom_2",
-            "type": "Gateway",
-            "location": "Bedroom 2",
-            "sensors": [
-                "temp",
-                "hum",
-                "light"
-            ],
-            "actuator": "window"
-        },
-        {
-            "device_id": "gateway_living_room",
-            "type": "Gateway",
-            "location": "Living Room",
-            "sensors": [
-                "temp",
-                "hum",
-                "light"
-            ],
-            "actuator": "window"
-        },
-        {
             "device_id": "gateway_bedroom_1",
             "type": "Gateway",
             "location": "Bedroom 1",
+            "sensors": [
+                "temp",
+                "hum",
+                "light"
+            ],
+            "actuator": "window"
+        },
+        {
+            "device_id": "gateway_bedroom_2",
+            "type": "Gateway",
+            "location": "Bedroom 2",
             "sensors": [
                 "temp",
                 "hum",
@@ -70,13 +59,13 @@
     ],
     "services": [
         {
-            "service_name": "ThingSpeak Cloud Adaptor",
-            "type": "Data Logger"
-        },
-        {
             "service_name": "Smart Home Control Logic",
             "description": "Monitors sensors and controls windows automatically",
             "type": "Control Logic"
+        },
+        {
+            "service_name": "ThingSpeak Cloud Adaptor",
+            "type": "Data Logger"
         }
     ]
 }
