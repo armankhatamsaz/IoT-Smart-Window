@@ -61,16 +61,20 @@ class SmartHomeBot:
             print(f"❌ MQTT Connection failed: {rc}")
 
     def on_mqtt_message(self, client, userdata, msg):
-        # استخراج نام اتاق و نوع سنسور از تاپیک (مثلاً home/livingroom/sensor/temp)
         parts = msg.topic.split('/')
         if len(parts) >= 4:
             zone = parts[1]
             sensor_type = parts[3]
-            payload = json.loads(msg.payload.decode())
             
-            if zone not in self.latest_sensor_data:
-                self.latest_sensor_data[zone] = {}
-            self.latest_sensor_data[zone][sensor_type] = payload.get("value")
+            # مقاوم‌سازی در برابر دیتای غیر JSON تو بروکرهای عمومی
+            try:
+                payload = json.loads(msg.payload.decode())
+                
+                if zone not in self.latest_sensor_data:
+                    self.latest_sensor_data[zone] = {}
+                self.latest_sensor_data[zone][sensor_type] = payload.get("value")
+            except json.JSONDecodeError:
+                print(f"⚠️ [Bot] Ignored malformed JSON on {msg.topic}: {msg.payload.decode()}")
 
     def start_mqtt(self):
         self.mqtt_client = mqtt.Client(client_id="TelegramBot_Client", transport=self.transport)
