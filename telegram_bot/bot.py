@@ -3,8 +3,8 @@ import json
 import requests
 import threading
 import telepot
-from telepot.namedtuple import ReplyKeyboardMarkup, KeyboardButton
 import paho.mqtt.client as mqtt
+from telepot.namedtuple import ReplyKeyboardMarkup, KeyboardButton
 
 class SmartHomeBot:
     def __init__(self, settings_file='settings.json'):
@@ -14,11 +14,9 @@ class SmartHomeBot:
         self.transport = None
         self.users_db = []
         
-        # دیکشنری برای ذخیره کاربرهای لاگین شده تو تلگرام (chat_id: user_info)
         self.active_sessions = {}
-        
-        # دیکشنری برای کش کردن آخرین دیتای سنسورها
         self.latest_sensor_data = {}
+        self.window_states = {} # 🧠 حافظه جدید برای ذخیره وضعیت پنجره‌ها
 
         self.mqtt_client = None
         self.bot = telepot.Bot(self.bot_token)
@@ -47,33 +45,54 @@ class SmartHomeBot:
                     print("✅ Registry Config received (Broker & Users info loaded)!")
                     break
             except Exception as e:
-                print("⏳ Waiting for Registry...")
                 time.sleep(3)
 
     # ================= MQTT Methods =================
     def on_mqtt_connect(self, client, userdata, flags, rc):
         if rc == 0:
             print("✅ Bot Connected to MQTT Broker!")
-            # سابسکرایب به همه سنسورها برای نمایش وضعیت به کاربر
             self.mqtt_client.subscribe("home/+/sensor/+")
+            self.mqtt_client.subscribe("home/+/actuator/window") # سابسکرایب به وضعیت پنجره‌ها
         else:
             print(f"❌ MQTT Connection failed: {rc}")
 
     def on_mqtt_message(self, client, userdata, msg):
-        parts = msg.topic.split('/')
-        if len(parts) >= 4:
-            zone = parts[1]
-            sensor_type = parts[3]
+        try:
+            payload = json.loads(msg.payload.decode())
+            parts = msg.topic.split('/')
             
-            # مقاوم‌سازی در برابر دیتای غیر JSON تو بروکرهای عمومی
-            try:
-                payload = json.loads(msg.payload.decode())
+            if len(parts) >= 4:
+                zone = parts[1]
+                msg_type = parts[2] # sensor یا actuator
                 
-                if zone not in self.latest_sensor_data:
-                    self.latest_sensor_data[zone] = {}
-                self.latest_sensor_data[zone][sensor_type] = payload.get("value")
-            except json.JSONDecodeError:
-                print(f"⚠️ [Bot] Ignored malformed JSON on {msg.topic}: {msg.payload.decode()}")
+                if msg_type == 'sensor':
+                    sensor_type = parts[3]
+                    if zone not in self.latest_sensor_data:
+                        self.latest_sensor_data[zone] = {}
+                    self.latest_sensor_data[zone][sensor_type] = payload.get("value")
+                    
+                elif msg_type == 'actuator':
+                    command = payload.get("command")
+                    reason = payload.get("reason", "Auto/System")
+                    
+                    # ذخیره وضعیت جدیدِ پنجره تو حافظه ربات
+                    self.window_states[zone] = command
+                    
+                    # 🚀 ارسال آلرت هوشمند فقط به کاربرانی که دسترسی دارن
+                    for chat_id, user in self.active_sessions.items():
+                        for room in user['allowed_rooms']:
+                            if room.replace(" ", "").lower() == zone:
+                                emoji = "🟢" if command == "OPEN" else "🔴"
+                                self.bot.sendMessage(
+                                    chat_id, 
+                                    f"🔔 {emoji} **Auto-Alert**: [{room}] window was {command}ED.\n_(Triggered by: {reason})_",
+                                    parse_mode='Markdown'
+                                )
+                                
+        except json.JSONDecodeError:
+            pass # نادیده گرفتن دیتاهای کثیف شبکه‌های عمومی
+        except Exception as e:
+            print(f"⚠️ [Bot] MQTT parse error: {e}")
 
     def start_mqtt(self):
         self.mqtt_client = mqtt.Client(client_id="TelegramBot_Client", transport=self.transport)
@@ -87,27 +106,20 @@ class SmartHomeBot:
         chat_id = msg['chat']['id']
         command = msg.get('text', '')
 
-        print(f"📩 Message from {chat_id}: {command}")
-
-        # اضافه کردن قابلیت هندل کردن /start
         if command == '/start':
             self.bot.sendMessage(chat_id, "🤖 Welcome to Smart Home Bot!\n🔒 Please login first.\nType: /login <username> <password>\n(Example: /login user1 1234)")
             return
 
-        # دستور ورود کاربر
         if command.startswith('/login'):
             parts = command.split()
             if len(parts) == 3:
                 username = parts[1]
                 password = parts[2]
                 
-                # جستجو در دیتابیسی که از کاتالوگ خوندیم
                 user = next((u for u in self.users_db if u['username'] == username and u['password'] == password), None)
                 
                 if user:
                     self.active_sessions[chat_id] = user
-                    
-                    # ساخت دکمه‌های اختصاصی برای این کاربر
                     buttons = [[KeyboardButton(text=f"📊 Status: {room}")] for room in user['allowed_rooms']]
                     buttons += [[KeyboardButton(text=f"🪟 OPEN {room}"), KeyboardButton(text=f"🪟 CLOSE {room}")] for room in user['allowed_rooms'] if room != "Outdoor"]
                     keyboard = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
@@ -115,18 +127,14 @@ class SmartHomeBot:
                     self.bot.sendMessage(chat_id, f"✅ Welcome back, {username}!\nYour authorized rooms are loaded.", reply_markup=keyboard)
                 else:
                     self.bot.sendMessage(chat_id, "❌ Invalid username or password.")
-            else:
-                self.bot.sendMessage(chat_id, "⚠️ Usage: /login <username> <password>")
             return
 
-        # اگر کاربر لاگین نکرده بود
         if chat_id not in self.active_sessions:
-            self.bot.sendMessage(chat_id, "🔒 Please login first.\nType: /login <username> <password>\n(Example: /login user1 1234)")
+            self.bot.sendMessage(chat_id, "🔒 Please login first.\nType: /login <username> <password>")
             return
 
         user_info = self.active_sessions[chat_id]
 
-        # هندل کردن دکمه‌های کنترل پنجره
         if command.startswith("🪟 OPEN") or command.startswith("🪟 CLOSE"):
             action = "OPEN" if "OPEN" in command else "CLOSE"
             room_name = command.replace(f"🪟 {action} ", "")
@@ -135,65 +143,53 @@ class SmartHomeBot:
                 topic_zone = room_name.replace(" ", "").lower()
                 actuator_topic = f"home/{topic_zone}/actuator/window"
                 
-                cmd_payload = json.dumps({"command": action, "reason": f"Manual command from Telegram ({user_info['username']})"})
+                cmd_payload = json.dumps({"command": action, "reason": f"Telegram Manual ({user_info['username']})"})
                 self.mqtt_client.publish(actuator_topic, cmd_payload)
-                self.bot.sendMessage(chat_id, f"✅ Command '{action}' sent to {room_name} window.")
+                # پیام تاییدیه ارسال فرمان
+                self.bot.sendMessage(chat_id, f"⏳ Command sent to {room_name}...")
             else:
                 self.bot.sendMessage(chat_id, "⛔ You don't have permission for this room.")
 
-        # هندل کردن دکمه وضعیت
         elif command.startswith("📊 Status:"):
             room_name = command.replace("📊 Status: ", "")
             if room_name in user_info['allowed_rooms']:
                 topic_zone = room_name.replace(" ", "").lower()
                 data = self.latest_sensor_data.get(topic_zone, {})
+                win_state = self.window_states.get(topic_zone, "UNKNOWN (Wait for action)")
                 
                 if data:
-                    text = f"🌡️ **{room_name} Status**\n"
-                    text += f"Temperature: {data.get('temp', 'N/A')} °C\n"
-                    text += f"Humidity: {data.get('hum', 'N/A')} %\n"
-                    text += f"Light: {data.get('light', 'N/A')} lux"
+                    text = f"🏢 **{room_name} Overview**\n"
+                    text += f"🪟 Window State: **{win_state}**\n\n"
+                    text += f"🌡️ Temperature: {data.get('temp', '--')} °C\n"
+                    text += f"💧 Humidity: {data.get('hum', '--')} %\n"
+                    text += f"☀️ Light: {data.get('light', '--')} lux"
                     self.bot.sendMessage(chat_id, text, parse_mode='Markdown')
                 else:
                     self.bot.sendMessage(chat_id, f"⏳ Waiting for sensor data from {room_name}...")
-            else:
-                self.bot.sendMessage(chat_id, "⛔ You don't have permission for this room.")
 
     def custom_polling_loop(self):
-        """حلقه اختصاصی برای دور زدن باگِ کتابخونه Telepot"""
         offset = None
         while True:
             try:
                 updates = self.bot.getUpdates(offset=offset)
                 for update in updates:
-                    # آپدیت کردن آفست برای اینکه تلگرام بفهمه پیام رو خوندیم و دوباره نفرستتش
                     offset = update['update_id'] + 1
-                    
-                    # اگه پیام متنیِ عادی بود بفرستش برای پردازش، وگرنه ایگنورش کن
                     if 'message' in update:
                         self.handle_message(update['message'])
-                    else:
-                        print(f"⚠️ [Bot] Ignored system/non-text update from Telegram.")
-            except Exception as e:
-                pass # اگه خطای شبکه‌ای خورد، هیچی نگو و به کارت ادامه بده
+            except Exception:
+                pass
             time.sleep(1)
-    
+
     def start(self):
-        # 1. رجیستر شدن و گرفتن اطلاعات شبکه
         self.discover_services()
-        
-        # 2. استارت کردن MQTT تو بک‌گراند
         self.start_mqtt()
-        
-        # 3. استارت کردن حلقه دریافت پیام اختصاصی (به جای MessageLoop)
         threading.Thread(target=self.custom_polling_loop, daemon=True).start()
-        print("🤖 Telegram Bot is listening (Bulletproof Mode)...")
+        print("🤖 Telegram Bot is listening (Smart Alerts Mode)...")
         
         try:
             while True:
                 time.sleep(10)
         except KeyboardInterrupt:
-            print("\n🛑 Bot stopped.")
             self.mqtt_client.loop_stop()
             self.mqtt_client.disconnect()
 

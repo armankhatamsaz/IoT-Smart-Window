@@ -44,13 +44,11 @@ class GenericSmartGateway:
         except FileNotFoundError:
             print(f"❌ FATAL ERROR: Configuration file '{filepath}' not found!")
             print("A commercial IoT device cannot start without its provisioning identity.")
-            sys.exit(1) # تو صنعت، اگه کانفیگ نباشه دستگاه بالا نمیاد!
-
-        # تلاش برای پیدا کردن رجیستری (داکر یا لوکال)
-        try:
-            requests.get(self.registry_url, timeout=1)
-        except requests.exceptions.RequestException:
-            self.registry_url = "http://127.0.0.1:8080"
+            import sys
+            sys.exit(1)
+            
+        # بلوک تست اولیه که باعث باگ میشد رو کاملا حذف کردیم!
+        # حالا کانکتور با همون آدرس رجیستری (http://registry:8080) انقدر صبر میکنه تا سرور بیاد بالا.
 
     def discover_and_register(self):
         """گرفتن تنظیمات شبکه و ثبت خودش تو کاتالوگ مرکزی"""
