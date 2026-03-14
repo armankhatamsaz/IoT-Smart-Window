@@ -1,39 +1,52 @@
 import time
 import random
+import string
 import json
-import warnings
 import requests
+import threading
 import sys
-
+import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
+
 import paho.mqtt.client as mqtt
 
-class GenericSmartGateway:
+class AdvancedGateway:
     def __init__(self, settings_file='settings.json'):
-        # ۱. خوندن هویتِ خودش از فایل کانفیگ (بدون هیچ هاردکدی)
         self.load_settings(settings_file)
-        
         self.broker = None
         self.port = None
         self.transport = None
         self.client = None
-
-        # ساخت ID و تاپیک استاندارد بر اساس اسم منطقه
-        safe_zone_name = self.zone_name.replace(" ", "_").lower()
-        self.device_id = f"gateway_{safe_zone_name}"
+        
+        # 1. ساختن یک ID و Client ID کاملاً یکتا (استاندارد استاد رافائل)
+        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        safe_zone = self.zone_name.replace(" ", "_").lower()
+        self.device_id = f"gw_{safe_zone}_{random_suffix}"
         self.topic_base = self.zone_name.replace(" ", "").lower()
 
-        # ساخت پروفایل برای معرفی به رجیستری
+        # 2. ساختاردهی تاپیک‌ها برای معرفی به کاتالوگ
+        self.my_topics = []
+        for sensor in self.sensors:
+            self.my_topics.append(f"home/{self.topic_base}/sensor/{sensor}")
+        
+        if self.has_actuator:
+            self.my_topics.append(f"home/{self.topic_base}/actuator/window")
+
+        # 3. پروفایل دیوایس دقیقاً مشابه فایل catalog.json استاد
         self.device_info = {
-            "device_id": self.device_id,
-            "type": "Gateway",
-            "location": self.zone_name,
-            "sensors": self.sensors,
-            "actuator": "window" if self.has_actuator else "none"
+            "deviceID": self.device_id,
+            "deviceName": f"{self.zone_name} Gateway",
+            "measureType": self.sensors,
+            "availableServices": ["MQTT"],
+            "servicesDetails": [
+                {
+                    "serviceType": "MQTT",
+                    "topic": self.my_topics
+                }
+            ]
         }
 
     def load_settings(self, filepath):
-        """خوندن هویت و قابلیت‌ها از فایل JSON"""
         try:
             with open(filepath, 'r') as f:
                 settings = json.load(f)
@@ -43,106 +56,102 @@ class GenericSmartGateway:
                 self.has_actuator = settings.get("has_actuator", False)
         except FileNotFoundError:
             print(f"❌ FATAL ERROR: Configuration file '{filepath}' not found!")
-            print("A commercial IoT device cannot start without its provisioning identity.")
-            import sys
             sys.exit(1)
-            
-        # بلوک تست اولیه که باعث باگ میشد رو کاملا حذف کردیم!
-        # حالا کانکتور با همون آدرس رجیستری (http://registry:8080) انقدر صبر میکنه تا سرور بیاد بالا.
 
     def discover_and_register(self):
-        """گرفتن تنظیمات شبکه و ثبت خودش تو کاتالوگ مرکزی"""
         print(f"🔍 [{self.zone_name}] Contacting Registry at {self.registry_url}...")
         
         while True:
             try:
-                resp = requests.get(f"{self.registry_url}/config", timeout=5)
+                resp = requests.get(f"{self.registry_url}/broker", timeout=5)
                 if resp.status_code == 200:
-                    config_data = resp.json()
-                    self.broker = config_data["broker"]["host"]
-                    self.port = config_data["broker"]["port"]
-                    self.transport = config_data["broker"]["transport"]
+                    config = resp.json()
+                    self.broker = config["IP"]
+                    self.port = config["port"]
+                    self.transport = config["transport"]
                     print(f"✅ [{self.zone_name}] Broker config received: {self.broker}:{self.port}")
                     break
-            except Exception as e:
-                print(f"⏳ [{self.zone_name}] Waiting for Registry to come online...")
+            except Exception:
                 time.sleep(3)
 
+        # ثبت نام دیوایس در مسیر جدید (devicesList)
         try:
-            resp = requests.post(f"{self.registry_url}/devices", json=self.device_info)
-            if resp.status_code == 201:
-                print(f"✅ [{self.zone_name}] Device registered successfully in Catalog!")
+            resp = requests.post(f"{self.registry_url}/devicesList", json=self.device_info)
+            if resp.status_code == 200:
+                print(f"✅ [{self.zone_name}] Registered successfully in Catalog!")
         except Exception as e:
             print(f"❌ [{self.zone_name}] Registration failed: {e}")
+
+    def heartbeat_worker(self):
+        """این تابع هر 50 ثانیه یک PUT می‌فرسته تا بگه دستگاه هنوز زنده‌ست"""
+        while True:
+            time.sleep(50)
+            try:
+                requests.put(
+                    f"{self.registry_url}/devicesList", 
+                    json={"id": self.device_id},
+                    timeout=5
+                )
+                # (برای شلوغ نشدن ترمینال، پیام موفقیت heartbeat رو پرینت نمی‌کنیم)
+            except Exception:
+                pass
 
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
             print(f"✅ [{self.zone_name}] Connected to MQTT Broker!")
-            
-            # فقط اگه تو فایل کانفیگ نوشته بود اکچویتور داره، سابسکرایب میکنه!
             if self.has_actuator:
                 topic = f"home/{self.topic_base}/actuator/window"
                 self.client.subscribe(topic)
-                print(f"📡 [{self.zone_name}] Subscribed to Actuator: {topic}")
-            else:
-                print(f"📡 [{self.zone_name}] No Actuators configured. Running in Sensor-Only mode.")
         else:
-            print(f"❌ Connection failed with code {rc}")
+            print(f"❌ Connection failed: {rc}")
 
     def on_message(self, client, userdata, msg):
         payload = json.loads(msg.payload.decode())
         command = payload.get("command")
-        
         if command == "OPEN":
-            print(f"\n🪟 🟢 [{self.zone_name}] RELAY TRIGGERED: Opening Window!\n")
+            print(f"\n🪟 🟢 [{self.zone_name}] Window Opening!\n")
         elif command == "CLOSE":
-            print(f"\n🪟 🔴 [{self.zone_name}] RELAY TRIGGERED: Closing Window!\n")
+            print(f"\n🪟 🔴 [{self.zone_name}] Window Closing!\n")
 
     def start(self):
         self.discover_and_register()
+        
+        # استارت کردن سیستم ضربان قلب (Heartbeat)
+        threading.Thread(target=self.heartbeat_worker, daemon=True).start()
 
-        self.client = mqtt.Client(client_id=f"Client_{self.device_id}", transport=self.transport)
+        self.client = mqtt.Client(client_id=f"MQTT_{self.device_id}", transport=self.transport)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
-        print(f"⏳ [{self.zone_name}] Connecting to Broker...")
         self.client.connect(self.broker, self.port, 60)
         self.client.loop_start()
         
         try:
             while True:
-                # داینامیک دیتای سنسور تولید میکنه (فقط برای سنسورهایی که تو کانفیگ تعریف شدن)
                 published_data = []
-                
                 if "temp" in self.sensors:
                     val = round(random.uniform(10.0, 35.0) if self.zone_name == "Outdoor" else random.uniform(20.0, 28.0), 2)
                     self.client.publish(f"home/{self.topic_base}/sensor/temp", json.dumps({"value": val, "unit": "C"}))
-                    published_data.append(f"Temp: {val}°C")
-                    
+                    published_data.append(f"Temp: {val}")
                 if "hum" in self.sensors:
                     val = round(random.uniform(20.0, 80.0) if self.zone_name == "Outdoor" else round(random.uniform(30.0, 60.0), 2), 2)
                     self.client.publish(f"home/{self.topic_base}/sensor/hum", json.dumps({"value": val, "unit": "%"}))
-                    published_data.append(f"Hum: {val}%")
-                    
+                    published_data.append(f"Hum: {val}")
                 if "light" in self.sensors:
                     val = round(random.uniform(100, 5000) if self.zone_name == "Outdoor" else round(random.uniform(200, 800), 2), 2)
                     self.client.publish(f"home/{self.topic_base}/sensor/light", json.dumps({"value": val, "unit": "lux"}))
-                    published_data.append(f"Light: {val}lx")
+                    published_data.append(f"Light: {val}")
                 
                 if published_data:
-                    print(f"📤 [{self.zone_name}] Published -> " + " | ".join(published_data))
+                    print(f"📤 [{self.zone_name}] Data -> " + " | ".join(published_data))
                 
                 time.sleep(5)
-                
         except KeyboardInterrupt:
-            print(f"\n🛑 [{self.zone_name}] Gateway stopped.")
             self.client.loop_stop()
             self.client.disconnect()
 
 if __name__ == "__main__":
     import os
-    # داکر به هر کانتینر میگه که کدوم فایل رو بخونه، اگه نگفت پیش‌فرض میشه پذیرایی
     config_file = os.environ.get("CONFIG_FILE", "settings_livingroom.json")
-    
-    gateway = GenericSmartGateway(config_file)
+    gateway = AdvancedGateway(config_file)
     gateway.start()

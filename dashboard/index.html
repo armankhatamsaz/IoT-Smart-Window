@@ -326,15 +326,18 @@
         try {
             const response = await fetch(REGISTRY_URL);
             const config = await response.json();
-            const user = config.users.find(u => u.username === uName && u.password === uPass);
+            
+            // 🚀 تغییرات هماهنگ با استاندارد جدید استاد (usersList و userName)
+            const user = config.usersList.find(u => u.userName === uName && u.password === uPass);
             
             if (user) {
                 currentUser = user;
-                document.getElementById('user-avatar').innerText = user.username.charAt(0);
+                // تغییر username به userName
+                document.getElementById('user-avatar').innerText = user.userName.charAt(0);
                 
-                // ساخت دکمه‌های نئومورفیک (جایگزین کشویی زشت)
                 roomSelectorContainer.innerHTML = '';
-                user.allowed_rooms.forEach((room, index) => {
+                // 🚀 تغییر allowed_rooms به allowed_zones
+                user.allowed_zones.forEach((room, index) => {
                     if(room !== "Outdoor") {
                         const roomKey = room.replace(" ", "").toLowerCase();
                         

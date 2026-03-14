@@ -1,5 +1,4 @@
 {
     "registry_url": "http://registry:8080",
-    "service_name": "Smart Home Control Logic",
-    "description": "Monitors sensors and controls windows automatically"
+    "service_name": "Smart Environment Analyzer"
 }
