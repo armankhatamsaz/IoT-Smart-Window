@@ -31,7 +31,7 @@ class SmartAnalyzer:
         self.service_info = {
             "serviceID": self.service_id,
             "serviceName": self.service_name,
-            "availableServices": ["MQTT", "REST"],
+            "availableServices": ["MQTT"],
             "servicesDetails": [
                 {
                     "serviceType": "MQTT",

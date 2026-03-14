@@ -385,7 +385,7 @@
                 loginError.classList.add('hidden-view');
                 loginPass.value = '';
                 
-                const wsUrl = `wss://${config.broker.host}:8884/mqtt`;
+                const wsUrl = `wss://${config.broker.IP}:8884/mqtt`;
                 if(!mqttClient) initSystem(wsUrl); 
             } else {
                 throw new Error("Invalid User");

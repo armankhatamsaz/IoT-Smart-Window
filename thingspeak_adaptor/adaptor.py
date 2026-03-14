@@ -24,7 +24,7 @@ class MultiChannelThingSpeakAdaptor:
         self.service_info = {
             "serviceID": self.service_id,
             "serviceName": "ThingSpeak Cloud Logger",
-            "availableServices": ["MQTT", "REST"],
+            "availableServices": ["MQTT"],
             "servicesDetails": [
                 {
                     "serviceType": "MQTT",

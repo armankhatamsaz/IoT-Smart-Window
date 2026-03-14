@@ -28,7 +28,7 @@ class SmartHomeBot:
         self.service_info = {
             "serviceID": self.service_id,
             "serviceName": "Telegram Control Bot",
-            "availableServices": ["MQTT", "REST"],
+            "availableServices": ["MQTT"],
             "servicesDetails": [
                 {
                     "serviceType": "MQTT",
