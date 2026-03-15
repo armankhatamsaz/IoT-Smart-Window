@@ -27,6 +27,7 @@ class SmartAnalyzer:
         self.temp_history = {}
         self.HISTORY_LIMIT = 5 # نگهداری 5 دیتای آخر برای میانگین‌گیری
 
+        self.last_command = {}
         # پروفایل سرویس برای ثبت در کاتالوگ
         self.service_info = {
             "serviceID": self.service_id,
@@ -154,10 +155,19 @@ class SmartAnalyzer:
             pass
 
         # ارسال فرمان به MQTT
+        # ارسال فرمان به MQTT (با بررسی حافظه وضعیت)
         if command:
-            cmd_payload = json.dumps({"command": command, "reason": reason})
-            self.client.publish(actuator_topic, cmd_payload)
-            print(f"   ⚙️ ACTION: Sent {command} to {zone}. Reason: {reason}")
+            # فقط در صورتی پیام رو بفرست که فرمانِ جدید، با فرمانِ قبلی فرق داشته باشه!
+            if command != self.last_command.get(zone):
+                cmd_payload = json.dumps({"command": command, "reason": reason})
+                self.client.publish(actuator_topic, cmd_payload)
+                print(f"   ⚙️ ACTION: Sent {command} to {zone}. Reason: {reason}")
+                
+                # ذخیره فرمان جدید تو حافظه تا دفعه بعد تکراری نفرسته
+                self.last_command[zone] = command
+            else:
+                # سیستم همون تصمیم رو گرفته، پنجره همون وضعیته، پس سکوت می‌کنیم (بدون اسپم)
+                pass
 
 
     def on_message(self, client, userdata, msg):
