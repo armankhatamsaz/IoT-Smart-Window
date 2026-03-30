@@ -5,6 +5,8 @@ services:
   registry:
     build: ./registry
     container_name: smarthome_registry
+    environment:
+      - TZ=Asia/Tehran
     ports:
       - "8080:8080"
     volumes:                 
@@ -16,6 +18,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_livingroom
     environment:
+      - TZ=Asia/Tehran
       - CONFIG_FILE=settings_livingroom.json
     command: python connector.py
     depends_on:
@@ -26,6 +29,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_bedroom1
     environment:
+      - TZ=Asia/Tehran
       - CONFIG_FILE=settings_bedroom1.json
     command: python connector.py
     depends_on:
@@ -36,6 +40,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_bedroom2
     environment:
+      - TZ=Asia/Tehran
       - CONFIG_FILE=settings_bedroom2.json
     command: python connector.py
     depends_on:
@@ -46,15 +51,18 @@ services:
     build: ./gateway
     container_name: smarthome_gw_outdoor
     environment:
+      - TZ=Asia/Tehran
       - CONFIG_FILE=settings_outdoor.json
     command: python connector.py
     depends_on:
       - registry
 
-  # 6. مغز متفکر (Analyzer) - آدرس پوشه اصلاح شد
+  # 6. مغز متفکر (Analyzer)
   analyzer:
     build: ./control_logic
     container_name: smarthome_analyzer
+    environment:
+      - TZ=Asia/Tehran
     command: python analyzer.py
     depends_on:
       - registry
@@ -63,14 +71,20 @@ services:
   telegram_bot:
     build: ./telegram_bot
     container_name: smarthome_bot
+    environment:
+      - TZ=Asia/Tehran
     command: python bot.py
     depends_on:
       - registry
 
-  # 8. آداپتور ThingSpeak - آدرس پوشه اصلاح شد
+  # 8. آداپتور ThingSpeak (آپدیت شده به عنوان Provider)
   adaptor:
     build: ./thingspeak_adaptor
     container_name: smarthome_adaptor
+    environment:
+      - TZ=Asia/Tehran
+    ports:
+      - "8081:8081"
     command: python adaptor.py
     depends_on:
       - registry
@@ -80,6 +94,8 @@ services:
     image: python:3.9-slim
     container_name: smarthome_dashboard
     working_dir: /app
+    environment:
+      - TZ=Asia/Tehran
     volumes:
       - ./dashboard:/app
     ports:

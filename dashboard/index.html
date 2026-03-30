@@ -268,7 +268,7 @@
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
-                            <p class="text-slate-500 text-sm">Powered by ThingSpeak (Auto-updates every 20s)</p>
+                            <p class="text-slate-500 text-sm">Powered by Internal Adaptor API (Agnostic Architecture)</p>
                         </div>
                         <button id="btn-refresh-history" class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/20 transition">
                             Refresh Now
@@ -285,10 +285,10 @@
 
 <script>
     const REGISTRY_URL = 'http://127.0.0.1:8080/config';
-    const TS_CHANNEL_ID = "3279973"; 
-    const TS_READ_KEY = "M45BE295HJ63IT3T"; 
+    // 🚀 آدرس API جدید آداپتور (جایگزین مستقیم تینگ‌اسپیک)
+    const ADAPTOR_HISTORY_URL = 'http://127.0.0.1:8081/history';
 
-    // مپینگ فیلدهای تینگ‌اسپیک به اتاق‌ها (این راز داینامیک بودن نموداره!)
+    // مپینگ فیلدهای تینگ‌اسپیک به اتاق‌ها
     const roomFieldMap = {
         "livingroom": { temp: "field1", hum: "field2" },
         "bedroom1": { temp: "field3", hum: "field4" },
@@ -299,7 +299,6 @@
     let currentUser = null;
     let selectedRoomKey = "";
     
-    // کش ایمن برای همه داده‌ها
     let sensorDataCache = {
         outdoor: { temp: "--", hum: "--", light: "--" }
     };
@@ -327,27 +326,22 @@
             const response = await fetch(REGISTRY_URL);
             const config = await response.json();
             
-            // 🚀 تغییرات هماهنگ با استاندارد جدید استاد (usersList و userName)
+            // هماهنگ با کاتالوگ جدید
             const user = config.usersList.find(u => u.userName === uName && u.password === uPass);
             
             if (user) {
                 currentUser = user;
-                // تغییر username به userName
                 document.getElementById('user-avatar').innerText = user.userName.charAt(0);
                 
                 roomSelectorContainer.innerHTML = '';
-                // 🚀 تغییر allowed_rooms به allowed_zones
                 user.allowed_zones.forEach((room, index) => {
                     if(room !== "Outdoor") {
                         const roomKey = room.replace(" ", "").toLowerCase();
-                        
                         const btn = document.createElement('button');
                         btn.className = `neumorphic-button px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${index === 0 ? 'neumorphic-pressed text-primary' : 'text-slate-500'}`;
                         btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">meeting_room</span> ${room}`;
                         
-                        // وقتی رو دکمه کلیک میشه
                         btn.addEventListener('click', () => {
-                            // آپدیت استایل دکمه‌ها
                             document.querySelectorAll('#room-selector button').forEach(b => {
                                 b.classList.remove('neumorphic-pressed', 'text-primary');
                                 b.classList.add('text-slate-500');
@@ -355,21 +349,16 @@
                             btn.classList.add('neumorphic-pressed', 'text-primary');
                             btn.classList.remove('text-slate-500');
 
-                            // تغییر اتاق جاری
                             selectedRoomKey = roomKey;
                             document.getElementById('current-room-label').innerText = room;
-                            
-                            // آپدیت دیتا
                             updateUIValues();
                             
-                            // اگه تو تب نمودار بودیم، نمودار رو هم آپدیت کن!
                             if (!document.getElementById('view-history').classList.contains('hidden-view')) {
-                                loadThingSpeakData();
+                                loadHistoricalData();
                             }
                         });
 
                         roomSelectorContainer.appendChild(btn);
-                        
                         if (index === 0) {
                             selectedRoomKey = roomKey;
                             document.getElementById('current-room-label').innerText = room;
@@ -379,11 +368,9 @@
                 });
 
                 document.getElementById('room-tabs-container').classList.remove('hidden-view');
-
                 loginOverlay.classList.add('hidden-view');
                 appWrapper.classList.remove('hidden-view');
                 loginError.classList.add('hidden-view');
-                loginPass.value = '';
                 
                 const wsUrl = `wss://${config.broker.IP}:8884/mqtt`;
                 if(!mqttClient) initSystem(wsUrl); 
@@ -401,7 +388,6 @@
         appWrapper.classList.add('hidden-view');
         loginOverlay.classList.remove('hidden-view');
         document.getElementById('room-tabs-container').classList.add('hidden-view');
-        loginUser.value = '';
         if(mqttClient) {
             mqttClient.end();
             mqttClient = null;
@@ -432,9 +418,9 @@
         navHome.classList.remove('bg-primary/10', 'text-primary');
         navHome.classList.add('text-slate-400');
 
-        loadThingSpeakData();
+        loadHistoricalData();
         if(historyInterval) clearInterval(historyInterval);
-        historyInterval = setInterval(loadThingSpeakData, 20000);
+        historyInterval = setInterval(loadHistoricalData, 20000);
     });
 
     // --- 2. Button Visual State Logic ---
@@ -459,17 +445,16 @@
 
     btnOpen.addEventListener('click', () => {
         if(mqttClient && selectedRoomKey) {
-            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "OPEN", reason: currentUser.username}));
+            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "OPEN", reason: currentUser.userName}));
         }
     });
 
     btnClose.addEventListener('click', () => {
         if(mqttClient && selectedRoomKey) {
-            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "CLOSE", reason: currentUser.username}));
+            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "CLOSE", reason: currentUser.userName}));
         }
     });
 
-    // آپدیت کردن مقادیر روی صفحه (شامل سنسورهای بیرون)
     function updateUIValues() {
         const indoor = sensorDataCache[selectedRoomKey] || {temp: "--", hum: "--", light: "--"};
         const outdoor = sensorDataCache["outdoor"] || {temp: "--", hum: "--", light: "--"};
@@ -477,7 +462,6 @@
         document.getElementById('val-temp').innerText = indoor.temp !== undefined ? indoor.temp : "--";
         document.getElementById('val-hum').innerText = indoor.hum !== undefined ? indoor.hum : "--";
         document.getElementById('val-light').innerText = indoor.light !== undefined ? indoor.light : "--";
-        
         document.getElementById('val-temp-out').innerText = outdoor.temp !== undefined ? outdoor.temp : "--";
         document.getElementById('val-hum-out').innerText = outdoor.hum !== undefined ? outdoor.hum : "--";
         
@@ -506,16 +490,12 @@
                 const zone = parts[1]; 
                 const type = parts[2]; 
                 const specific = parts[3]; 
-                
                 const payload = JSON.parse(message.toString());
 
                 if (type === 'sensor') {
                     if (!sensorDataCache[zone]) sensorDataCache[zone] = {};
                     sensorDataCache[zone][specific] = payload.value !== undefined ? payload.value : parseFloat(payload);
-                    
-                    if (zone === selectedRoomKey || zone === "outdoor") {
-                        updateUIValues();
-                    }
+                    if (zone === selectedRoomKey || zone === "outdoor") updateUIValues();
                 } 
                 else if (type === 'actuator' && zone === selectedRoomKey) {
                     if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
@@ -533,23 +513,20 @@
                         <span class="text-slate-500 font-mono text-xs">${timeString}</span>
                         <span class="font-bold ${colorClass}">${payload.command} [${zone.toUpperCase()}]</span>
                     `;
-                    
                     logContainer.prepend(logEntry);
-                    setTimeout(() => logEntry.classList.remove('animate-pulse'), 1000);
                     while (logContainer.children.length > 5) logContainer.removeChild(logContainer.lastChild);
                 }
             } catch(e){}
         });
     }
 
-    // --- 4. ThingSpeak History & Chart Logic ---
+    // --- 4. 🚀 New Agnostic History Logic (via Adaptor) ---
     let historyChartInstance = null;
     
-    async function loadThingSpeakData() {
-        const url = `https://api.thingspeak.com/channels/${TS_CHANNEL_ID}/feeds.json?api_key=${TS_READ_KEY}&results=20`;
-
+    async function loadHistoricalData() {
         try {
-            const response = await fetch(url);
+            // 🚀 درخواست به آداپتور داخلی خودمان به جای تینگ‌اسپیک
+            const response = await fetch(ADAPTOR_HISTORY_URL);
             const data = await response.json();
             
             const labels = data.feeds.map(f => {
@@ -557,9 +534,7 @@
                 return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
             });
             
-            // داینامیک خوندن فیلدها بر اساس اتاقی که کاربر انتخاب کرده
             const fields = roomFieldMap[selectedRoomKey] || roomFieldMap["livingroom"];
-            
             const temps_in = data.feeds.map(f => parseFloat(f[fields.temp]));
             const hums_in = data.feeds.map(f => parseFloat(f[fields.hum]));
             const temps_out = data.feeds.map(f => parseFloat(f.field7));
@@ -568,7 +543,7 @@
             const roomName = document.getElementById('current-room-label').innerText;
             renderChart(labels, temps_in, hums_in, temps_out, hums_out, roomName);
         } catch (error) {
-            console.error("Error fetching ThingSpeak data:", error);
+            console.error("Error fetching historical data from internal Adaptor:", error);
         }
     }
 
@@ -603,7 +578,6 @@
                         label: `Indoor Hum (%) [${roomName}]`,
                         data: hums_in,
                         borderColor: '#0d9488',
-                        backgroundColor: 'rgba(13, 148, 136, 0.0)',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         tension: 0.4,
@@ -613,7 +587,6 @@
                         label: 'Outdoor Hum (%)',
                         data: hums_out,
                         borderColor: '#e11d48',
-                        backgroundColor: 'rgba(225, 29, 72, 0.0)',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         tension: 0.4,
@@ -625,17 +598,12 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: false } },
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                }
+                scales: { y: { beginAtZero: false } }
             }
         });
     }
 
-    document.getElementById('btn-refresh-history').addEventListener('click', loadThingSpeakData);
-
+    document.getElementById('btn-refresh-history').addEventListener('click', loadHistoricalData);
 </script>
 </body>
 </html>

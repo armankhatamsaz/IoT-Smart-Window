@@ -1,7 +1,7 @@
 {
     "projectOwner": "Smart Home Team",
     "projectName": "Window Control Ecosystem",
-    "lastUpdate": "2026-03-17 18:26:52",
+    "lastUpdate": "2026-03-29 17:25:19",
     "broker": {
         "IP": "broker.hivemq.com",
         "port": 8000,
@@ -29,40 +29,7 @@
     ],
     "servicesList": [
         {
-            "serviceID": "ts_adaptor_w8bo",
-            "serviceName": "ThingSpeak Cloud Logger",
-            "availableServices": [
-                "MQTT"
-            ],
-            "servicesDetails": [
-                {
-                    "serviceType": "MQTT",
-                    "topic": [
-                        "home/+/sensor/+"
-                    ]
-                }
-            ],
-            "lastUpdate": "2026-03-17 18:26:52"
-        },
-        {
-            "serviceID": "telegram_bot_76gx",
-            "serviceName": "Telegram Control Bot",
-            "availableServices": [
-                "MQTT"
-            ],
-            "servicesDetails": [
-                {
-                    "serviceType": "MQTT",
-                    "topic": [
-                        "home/+/sensor/+",
-                        "home/+/actuator/window"
-                    ]
-                }
-            ],
-            "lastUpdate": "2026-03-17 18:26:52"
-        },
-        {
-            "serviceID": "analyzer_y17u",
+            "serviceID": "analyzer_ztfd",
             "serviceName": "Smart Environment Analyzer",
             "availableServices": [
                 "MQTT"
@@ -76,12 +43,45 @@
                     ]
                 }
             ],
-            "lastUpdate": "2026-03-17 18:26:52"
+            "lastUpdate": "2026-03-29 17:25:18"
+        },
+        {
+            "serviceID": "ts_adaptor_78bc",
+            "serviceName": "ThingSpeak Cloud Logger",
+            "availableServices": [
+                "MQTT"
+            ],
+            "servicesDetails": [
+                {
+                    "serviceType": "MQTT",
+                    "topic": [
+                        "home/+/sensor/+"
+                    ]
+                }
+            ],
+            "lastUpdate": "2026-03-29 17:25:18"
+        },
+        {
+            "serviceID": "telegram_bot_o5wn",
+            "serviceName": "Telegram Control Bot",
+            "availableServices": [
+                "MQTT"
+            ],
+            "servicesDetails": [
+                {
+                    "serviceType": "MQTT",
+                    "topic": [
+                        "home/+/sensor/+",
+                        "home/+/actuator/window"
+                    ]
+                }
+            ],
+            "lastUpdate": "2026-03-29 17:25:19"
         }
     ],
     "devicesList": [
         {
-            "deviceID": "gw_bedroom_1_auj4",
+            "deviceID": "gw_bedroom_1_onza",
             "deviceName": "Bedroom 1 Gateway",
             "measureType": [
                 "temp",
@@ -102,34 +102,10 @@
                     ]
                 }
             ],
-            "lastUpdate": "2026-03-17 18:26:52"
+            "lastUpdate": "2026-03-29 17:25:18"
         },
         {
-            "deviceID": "gw_bedroom_2_jhiv",
-            "deviceName": "Bedroom 2 Gateway",
-            "measureType": [
-                "temp",
-                "hum",
-                "light"
-            ],
-            "availableServices": [
-                "MQTT"
-            ],
-            "servicesDetails": [
-                {
-                    "serviceType": "MQTT",
-                    "topic": [
-                        "home/bedroom2/sensor/temp",
-                        "home/bedroom2/sensor/hum",
-                        "home/bedroom2/sensor/light",
-                        "home/bedroom2/actuator/window"
-                    ]
-                }
-            ],
-            "lastUpdate": "2026-03-17 18:26:52"
-        },
-        {
-            "deviceID": "gw_living_room_poo1",
+            "deviceID": "gw_living_room_x8di",
             "deviceName": "Living Room Gateway",
             "measureType": [
                 "temp",
@@ -150,10 +126,34 @@
                     ]
                 }
             ],
-            "lastUpdate": "2026-03-17 18:26:52"
+            "lastUpdate": "2026-03-29 17:25:19"
         },
         {
-            "deviceID": "gw_outdoor_dl86",
+            "deviceID": "gw_bedroom_2_n8bj",
+            "deviceName": "Bedroom 2 Gateway",
+            "measureType": [
+                "temp",
+                "hum",
+                "light"
+            ],
+            "availableServices": [
+                "MQTT"
+            ],
+            "servicesDetails": [
+                {
+                    "serviceType": "MQTT",
+                    "topic": [
+                        "home/bedroom2/sensor/temp",
+                        "home/bedroom2/sensor/hum",
+                        "home/bedroom2/sensor/light",
+                        "home/bedroom2/actuator/window"
+                    ]
+                }
+            ],
+            "lastUpdate": "2026-03-29 17:25:19"
+        },
+        {
+            "deviceID": "gw_outdoor_1gc2",
             "deviceName": "Outdoor Gateway",
             "measureType": [
                 "temp",
@@ -173,7 +173,7 @@
                     ]
                 }
             ],
-            "lastUpdate": "2026-03-17 18:26:52"
+            "lastUpdate": "2026-03-29 17:25:19"
         }
     ]
 }
