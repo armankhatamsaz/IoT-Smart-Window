@@ -18,7 +18,7 @@ class AdvancedGateway:
         self.transport = None
         self.client = None
         
-        # 1. ساختن یک ID و Client ID کاملاً یکتا (استاندارد استاد رافائل)
+        # 1. ساختن یک ID و Client ID کاملا یکتا (استاندارد استاد رافائل)
         random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
         safe_zone = self.zone_name.replace(" ", "_").lower()
         self.device_id = f"gw_{safe_zone}_{random_suffix}"
