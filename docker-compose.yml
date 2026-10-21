@@ -4,7 +4,7 @@ services:
     image: eclipse-mosquitto:2.0.20
     container_name: smarthome_broker
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
     ports:
       - "1883:1883"
       - "9001:9001"
@@ -16,7 +16,7 @@ services:
     build: ./registry
     container_name: smarthome_registry
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
     ports:
       - "8080:8080"
     volumes:
@@ -29,7 +29,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_livingroom
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
       - CONFIG_FILE=settings_livingroom.json
     ports:
       - "8091:8090"
@@ -44,7 +44,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_bedroom1
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
       - CONFIG_FILE=settings_bedroom1.json
     ports:
       - "8092:8090"
@@ -59,7 +59,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_bedroom2
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
       - CONFIG_FILE=settings_bedroom2.json
     ports:
       - "8093:8090"
@@ -74,7 +74,7 @@ services:
     build: ./gateway
     container_name: smarthome_gw_outdoor
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
       - CONFIG_FILE=settings_outdoor.json
     ports:
       - "8094:8090"
@@ -89,7 +89,7 @@ services:
     build: ./control_logic
     container_name: smarthome_analyzer
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
     command: python analyzer.py
     restart: on-failure
     depends_on:
@@ -101,7 +101,7 @@ services:
     build: ./telegram_bot
     container_name: smarthome_bot
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
     command: python bot.py
     restart: on-failure
@@ -114,7 +114,7 @@ services:
     build: ./thingspeak_adaptor
     container_name: smarthome_adaptor
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
       - THINGSPEAK_CH1_WRITE_KEY=${THINGSPEAK_CH1_WRITE_KEY:-}
       - THINGSPEAK_CH1_READ_KEY=${THINGSPEAK_CH1_READ_KEY:-}
       - THINGSPEAK_CH2_WRITE_KEY=${THINGSPEAK_CH2_WRITE_KEY:-}
@@ -132,7 +132,7 @@ services:
     build: ./forecaster
     container_name: smarthome_forecaster
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
     ports:
       - "8082:8082"
     command: python forecaster.py
@@ -148,7 +148,7 @@ services:
     container_name: smarthome_dashboard
     working_dir: /app
     environment:
-      - TZ=Asia/Tehran
+      - TZ=Europe/Rome
     volumes:
       - ./dashboard:/app
     ports:

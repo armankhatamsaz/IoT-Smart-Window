@@ -1,713 +1,674 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Smart Window Control Center</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script src="https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-    
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#2463eb",
-                        "background-light": "#f0f4f8",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
-                    borderRadius: {
-                        "DEFAULT": "1rem",
-                        "lg": "1.5rem",
-                        "xl": "2rem",
-                        "2xl": "2.5rem",
-                        "full": "9999px"
-                    },
-                    boxShadow: {
-                        'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
-                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-                    }
-                },
-            },
-        }
-    </script>
-    <style>
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-        }
-        .neumorphic-button {
-            background: #ffffff;
-            box-shadow: 6px 6px 12px #d1d9e6, -6px -6px 12px #ffffff;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .neumorphic-pressed {
-            box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff !important;
-        }
-        .hidden-view { display: none !important; }
-    </style>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Smart Window Control Center</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#2463eb",
+            "background-light": "#f0f4f8",
+          },
+          fontFamily: {
+            "display": ["Inter", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "1rem",
+            "lg": "1.5rem",
+            "xl": "2rem",
+            "2xl": "2.5rem",
+            "full": "9999px"
+          },
+          boxShadow: {
+            'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
+            'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+          }
+        },
+      },
+    }
+  </script>
+  <style>
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    .neumorphic-button {
+      background: #ffffff;
+      box-shadow: 6px 6px 12px #d1d9e6, -6px -6px 12px #ffffff;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .neumorphic-pressed {
+      box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff !important;
+    }
+    .hidden-view { display: none !important; }
+  </style>
 </head>
 <body class="bg-background-light text-slate-900 font-display h-screen overflow-hidden relative">
 
 <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-background-light overflow-hidden">
-    <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
-    <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
-    
-    <div class="glass-panel rounded-3xl p-8 shadow-glass flex flex-col items-center z-10 w-full max-w-sm mx-4 border border-white">
-        <div class="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 mb-6">
-            <span class="material-symbols-outlined text-3xl">lock</span>
-        </div>
-        <h2 class="text-2xl font-bold text-slate-800 mb-2">System Login</h2>
-        <p class="text-slate-500 text-sm mb-6 text-center">Authenticate via Smart Home Registry</p>
-        
-        <input type="text" id="login-user" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Username (e.g. user1)">
-        <input type="password" id="login-pass" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Password">
-        
-        <p id="login-error" class="text-rose-500 text-xs mb-4 hidden-view font-semibold">❌ Invalid credentials or Registry offline.</p>
+  <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
+  <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
 
-        <button id="btn-login" class="neumorphic-button w-full rounded-xl py-3 font-bold text-primary flex items-center justify-center gap-2">
-            <span id="login-btn-text">Login Securely</span>
-            <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
-        </button>
+  <div class="glass-panel rounded-3xl p-8 shadow-glass flex flex-col items-center z-10 w-full max-w-sm mx-4 border border-white">
+    <div class="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 mb-6">
+      <span class="material-symbols-outlined text-3xl">lock</span>
     </div>
+    <h2 class="text-2xl font-bold text-slate-800 mb-2">System Login</h2>
+    <p class="text-slate-500 text-sm mb-6 text-center">Authenticate via Smart Home Registry</p>
+
+    <input type="text" id="login-user" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Username (e.g. user1)">
+    <input type="password" id="login-pass" class="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-700 font-mono" placeholder="Password">
+
+    <p id="login-error" class="text-rose-500 text-xs mb-4 hidden-view font-semibold">❌ Invalid credentials or Registry offline.</p>
+
+    <button id="btn-login" class="neumorphic-button w-full rounded-xl py-3 font-bold text-primary flex items-center justify-center gap-2">
+      <span id="login-btn-text">Login Securely</span>
+      <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+    </button>
+  </div>
 </div>
 
 <div id="app-wrapper" class="hidden-view flex h-screen w-full flex-col lg:flex-row overflow-hidden">
-    
-    <aside class="w-full lg:w-20 lg:flex-col flex flex-row items-center justify-between lg:justify-start bg-white border-r border-slate-200 py-4 px-4 lg:px-0 lg:py-8 z-20 shadow-sm relative shrink-0">
-        <div class="mb-0 lg:mb-12 flex justify-center w-full">
-            <div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30">
-                <span class="material-symbols-outlined">grid_view</span>
-            </div>
+
+  <aside class="w-full lg:w-20 lg:flex-col flex flex-row items-center justify-between lg:justify-start bg-white border-r border-slate-200 py-4 px-4 lg:px-0 lg:py-8 z-20 shadow-sm relative shrink-0">
+    <div class="mb-0 lg:mb-12 flex justify-center w-full">
+      <div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30">
+        <span class="material-symbols-outlined">grid_view</span>
+      </div>
+    </div>
+    <nav class="flex flex-row lg:flex-col gap-6 lg:gap-8 items-center w-full">
+      <button id="nav-home" class="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors cursor-pointer">
+        <span class="material-symbols-outlined">home</span>
+      </button>
+      <button id="nav-history" class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-primary hover:bg-slate-50 transition-colors cursor-pointer">
+        <span class="material-symbols-outlined">analytics</span>
+      </button>
+    </nav>
+    <div class="mt-auto hidden lg:flex w-full justify-center">
+      <div id="user-avatar" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-white font-bold bg-primary shadow-md uppercase">U</div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+    <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
+
+    <header class="flex items-center justify-between px-8 pt-6 pb-2 z-10 shrink-0">
+      <div class="flex flex-col">
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Smart Window Control Center</h1>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="relative flex h-2.5 w-2.5">
+            <span id="mqtt-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span id="mqtt-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+          </span>
+          <p id="mqtt-text" class="text-xs font-medium text-red-600 uppercase tracking-wider">Connecting...</p>
         </div>
-        <nav class="flex flex-row lg:flex-col gap-6 lg:gap-8 items-center w-full">
-            <button id="nav-home" class="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors cursor-pointer">
-                <span class="material-symbols-outlined">home</span>
+      </div>
+      <button id="btn-logout" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 text-sm font-semibold">
+        <span class="material-symbols-outlined text-[18px]">logout</span> Logout
+      </button>
+    </header>
+
+    <div id="room-tabs-container" class="px-8 pb-4 z-10 shrink-0 hidden-view w-full overflow-x-auto">
+      <div id="room-selector" class="flex gap-4">
+        </div>
+    </div>
+
+    <div id="view-home" class="flex-1 overflow-y-auto p-4 lg:p-8 pt-0">
+      <div class="grid grid-cols-12 gap-6 lg:h-full max-w-[1600px] mx-auto pb-4">
+
+        <div class="col-span-12 lg:col-span-8 flex flex-col gap-6 lg:h-full">
+
+          <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[250px] lg:min-h-[200px]">
+            <div class="flex justify-between items-start mb-4 z-10 shrink-0">
+              <div>
+                <h2 id="current-room-label" class="text-xl font-bold text-slate-800">Room</h2>
+                <p class="text-slate-500 text-sm">Live sensors · automatic window control</p>
+              </div>
+              <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-primary border border-white/50 shadow-sm flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">sensors</span> Live data
+              </div>
+            </div>
+
+            <div class="relative flex-1 w-full rounded-xl overflow-hidden group bg-slate-200">
+              <div class="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out" style="background-image: url('https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');"></div>
+              <div class="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px]"></div>
+
+              <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                <div class="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-xl border border-white/10">
+                  <span class="block text-xs text-white/70">Outdoor light</span>
+                  <span id="cam-lux" class="font-mono text-lg font-bold">-- lx</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-6 shadow-soft shrink-0">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">window</span> Window Control
+              </h3>
+              <div class="flex items-baseline gap-1">
+                <span id="win-value" class="text-3xl font-bold text-primary">0</span>
+                <span class="text-sm text-slate-500 font-semibold">% open</span>
+              </div>
+            </div>
+            <input id="win-slider" type="range" min="0" max="100" step="5" value="0"
+              class="w-full h-2 accent-primary cursor-pointer mb-5">
+            <div class="grid grid-cols-2 gap-4">
+              <div id="btn-close" class="neumorphic-button h-14 rounded-xl flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-slate-500">door_front</span>
+                <span class="font-semibold text-slate-700">Close</span>
+              </div>
+              <div id="btn-open" class="neumorphic-button h-14 rounded-xl flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-slate-500">meeting_room</span>
+                <span class="font-semibold text-slate-700">Open</span>
+              </div>
+            </div>
+            <p id="win-reason" class="text-xs text-slate-400 mt-3 italic min-h-[1rem]"></p>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col h-[220px] shrink-0">
+            <div class="flex justify-between items-center mb-4 shrink-0">
+              <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">history</span> System Logs
+              </h3>
+            </div>
+            <div id="activity-log" class="flex-1 overflow-y-auto space-y-3 pr-2 flex flex-col justify-start">
+              <div class="text-sm text-slate-400 italic">Waiting for system actions...</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="col-span-12 lg:col-span-4 flex flex-col gap-6 lg:h-full">
+          <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col gap-4 lg:h-full overflow-y-auto">
+
+            <h3 class="text-slate-800 font-bold text-lg mb-0 shrink-0">Indoor Environment</h3>
+
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
+              <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <span class="material-symbols-outlined">thermostat</span>
+              </div>
+              <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Temp</p>
+                <div class="flex items-baseline gap-1">
+                  <h4 id="val-temp" class="text-2xl font-bold text-slate-800">--</h4>
+                  <span class="text-sm text-slate-500">°C</span>
+                </div>
+                <p id="val-forecast" class="text-xs font-semibold text-indigo-500 mt-1 hidden-view"></p>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
+              <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
+                <span class="material-symbols-outlined">water_drop</span>
+              </div>
+              <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Humidity</p>
+                <div class="flex items-baseline gap-1">
+                  <h4 id="val-hum" class="text-2xl font-bold text-slate-800">--</h4>
+                  <span class="text-sm text-slate-500">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 mb-2 shrink-0">
+              <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                <span class="material-symbols-outlined">light_mode</span>
+              </div>
+              <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Light</p>
+                <div class="flex items-baseline gap-1">
+                  <h4 id="val-light" class="text-2xl font-bold text-slate-800">--</h4>
+                  <span class="text-sm text-slate-500">Lux</span>
+                </div>
+              </div>
+            </div>
+
+            <h3 class="text-slate-800 font-bold text-lg mb-0 mt-2 border-t pt-4 shrink-0">Outdoor Environment</h3>
+
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
+              <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <span class="material-symbols-outlined">device_thermostat</span>
+              </div>
+              <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outdoor Temp</p>
+                <div class="flex items-baseline gap-1">
+                  <h4 id="val-temp-out" class="text-2xl font-bold text-slate-800">--</h4>
+                  <span class="text-sm text-slate-500">°C</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
+              <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
+                <span class="material-symbols-outlined">humidity_percentage</span>
+              </div>
+              <div class="flex-1">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outdoor Hum</p>
+                <div class="flex items-baseline gap-1">
+                  <h4 id="val-hum-out" class="text-2xl font-bold text-slate-800">--</h4>
+                  <span class="text-sm text-slate-500">%</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-history" class="hidden-view flex-1 overflow-y-auto p-4 lg:p-8 pt-0">
+      <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
+        <div class="glass-panel rounded-2xl p-6 shadow-glass flex-1 flex flex-col min-h-[500px]">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
+              <p class="text-slate-500 text-sm">Stored in ThingSpeak, served by the adaptor's REST API</p>
+              <p id="model-info" class="text-xs font-semibold text-indigo-500 mt-1"></p>
+            </div>
+            <button id="btn-refresh-history" class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/20 transition">
+              Refresh Now
             </button>
-            <button id="nav-history" class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-primary hover:bg-slate-50 transition-colors cursor-pointer">
-                <span class="material-symbols-outlined">analytics</span>
-            </button>
-        </nav>
-        <div class="mt-auto hidden lg:flex w-full justify-center">
-            <div id="user-avatar" class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-white font-bold bg-primary shadow-md uppercase">U</div>
+          </div>
+          <div class="flex-1 relative w-full bg-white rounded-2xl border border-slate-100 p-4">
+            <canvas id="historyChart"></canvas>
+          </div>
         </div>
-    </aside>
-
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[100px] pointer-events-none"></div>
-        <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[80px] pointer-events-none"></div>
-        
-        <header class="flex items-center justify-between px-8 pt-6 pb-2 z-10 shrink-0">
-            <div class="flex flex-col">
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Smart Window Control Center</h1>
-                <div class="flex items-center gap-2 mt-1">
-                    <span class="relative flex h-2.5 w-2.5">
-                        <span id="mqtt-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span id="mqtt-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                    </span>
-                    <p id="mqtt-text" class="text-xs font-medium text-red-600 uppercase tracking-wider">Connecting...</p>
-                </div>
-            </div>
-            <button id="btn-logout" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 text-sm font-semibold">
-                <span class="material-symbols-outlined text-[18px]">logout</span> Logout
-            </button>
-        </header>
-
-        <div id="room-tabs-container" class="px-8 pb-4 z-10 shrink-0 hidden-view w-full overflow-x-auto">
-            <div id="room-selector" class="flex gap-4">
-                </div>
-        </div>
-
-        <div id="view-home" class="flex-1 overflow-y-auto p-4 lg:p-8 pt-0">
-            <div class="grid grid-cols-12 gap-6 lg:h-full max-w-[1600px] mx-auto pb-4">
-                
-                <div class="col-span-12 lg:col-span-8 flex flex-col gap-6 lg:h-full">
-                    
-                    <div class="glass-panel rounded-2xl p-6 shadow-glass flex flex-col relative overflow-hidden flex-1 min-h-[250px] lg:min-h-[200px]">
-                        <div class="flex justify-between items-start mb-4 z-10 shrink-0">
-                            <div>
-                                <h2 id="current-room-label" class="text-xl font-bold text-slate-800">Room</h2>
-                                <p class="text-slate-500 text-sm">Live sensors · automatic window control</p>
-                            </div>
-                            <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-primary border border-white/50 shadow-sm flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[16px]">sensors</span> Live data
-                            </div>
-                        </div>
-                        
-                        <div class="relative flex-1 w-full rounded-xl overflow-hidden group bg-slate-200">
-                            <div class="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out" style="background-image: url('https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');"></div>
-                            <div class="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px]"></div>
-                            
-                            <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-                                <div class="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-xl border border-white/10">
-                                    <span class="block text-xs text-white/70">Outdoor light</span>
-                                    <span id="cam-lux" class="font-mono text-lg font-bold">-- lx</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-panel rounded-2xl p-6 shadow-soft shrink-0">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary">window</span> Window Control
-                            </h3>
-                            <div class="flex items-baseline gap-1">
-                                <span id="win-value" class="text-3xl font-bold text-primary">0</span>
-                                <span class="text-sm text-slate-500 font-semibold">% open</span>
-                            </div>
-                        </div>
-                        <input id="win-slider" type="range" min="0" max="100" step="5" value="0"
-                            class="w-full h-2 accent-primary cursor-pointer mb-5">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div id="btn-close" class="neumorphic-button h-14 rounded-xl flex items-center justify-center gap-2">
-                                <span class="material-symbols-outlined text-slate-500">door_front</span>
-                                <span class="font-semibold text-slate-700">Close</span>
-                            </div>
-                            <div id="btn-open" class="neumorphic-button h-14 rounded-xl flex items-center justify-center gap-2">
-                                <span class="material-symbols-outlined text-slate-500">meeting_room</span>
-                                <span class="font-semibold text-slate-700">Open</span>
-                            </div>
-                        </div>
-                        <p id="win-reason" class="text-xs text-slate-400 mt-3 italic min-h-[1rem]"></p>
-                    </div>
-
-                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col h-[220px] shrink-0">
-                        <div class="flex justify-between items-center mb-4 shrink-0">
-                            <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary">history</span> System Logs
-                            </h3>
-                        </div>
-                        <div id="activity-log" class="flex-1 overflow-y-auto space-y-3 pr-2 flex flex-col justify-start">
-                            <div class="text-sm text-slate-400 italic">Waiting for system actions...</div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="col-span-12 lg:col-span-4 flex flex-col gap-6 lg:h-full">
-                    <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col gap-4 lg:h-full overflow-y-auto">
-                        
-                        <h3 class="text-slate-800 font-bold text-lg mb-0 shrink-0">Indoor Environment</h3>
-                        
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
-                            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                <span class="material-symbols-outlined">thermostat</span>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Temp</p>
-                                <div class="flex items-baseline gap-1">
-                                    <h4 id="val-temp" class="text-2xl font-bold text-slate-800">--</h4>
-                                    <span class="text-sm text-slate-500">°C</span>
-                                </div>
-                                <p id="val-forecast" class="text-xs font-semibold text-indigo-500 mt-1 hidden-view"></p>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
-                            <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
-                                <span class="material-symbols-outlined">water_drop</span>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Humidity</p>
-                                <div class="flex items-baseline gap-1">
-                                    <h4 id="val-hum" class="text-2xl font-bold text-slate-800">--</h4>
-                                    <span class="text-sm text-slate-500">%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 mb-2 shrink-0">
-                            <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
-                                <span class="material-symbols-outlined">light_mode</span>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Indoor Light</p>
-                                <div class="flex items-baseline gap-1">
-                                    <h4 id="val-light" class="text-2xl font-bold text-slate-800">--</h4>
-                                    <span class="text-sm text-slate-500">Lux</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <h3 class="text-slate-800 font-bold text-lg mb-0 mt-2 border-t pt-4 shrink-0">Outdoor Environment</h3>
-                        
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
-                            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                <span class="material-symbols-outlined">device_thermostat</span>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outdoor Temp</p>
-                                <div class="flex items-baseline gap-1">
-                                    <h4 id="val-temp-out" class="text-2xl font-bold text-slate-800">--</h4>
-                                    <span class="text-sm text-slate-500">°C</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 shrink-0">
-                            <div class="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
-                                <span class="material-symbols-outlined">humidity_percentage</span>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outdoor Hum</p>
-                                <div class="flex items-baseline gap-1">
-                                    <h4 id="val-hum-out" class="text-2xl font-bold text-slate-800">--</h4>
-                                    <span class="text-sm text-slate-500">%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="view-history" class="hidden-view flex-1 overflow-y-auto p-4 lg:p-8 pt-0">
-            <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
-                <div class="glass-panel rounded-2xl p-6 shadow-glass flex-1 flex flex-col min-h-[500px]">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
-                            <p class="text-slate-500 text-sm">Stored in ThingSpeak, served by the adaptor's REST API</p>
-                            <p id="model-info" class="text-xs font-semibold text-indigo-500 mt-1"></p>
-                        </div>
-                        <button id="btn-refresh-history" class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/20 transition">
-                            Refresh Now
-                        </button>
-                    </div>
-                    <div class="flex-1 relative w-full bg-white rounded-2xl border border-slate-100 p-4">
-                        <canvas id="historyChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+      </div>
+    </div>
+  </main>
 </div>
 
 <script>
-    const REGISTRY_URL = 'http://127.0.0.1:8080';
-    // History is served by the local adaptor, not fetched from ThingSpeak directly.
-    const ADAPTOR_HISTORY_URL = 'http://127.0.0.1:8081/history';
-    const FORECASTER_MODEL_URL = 'http://127.0.0.1:8082/model';
+  const REGISTRY_URL = 'http://127.0.0.1:8080';
+  // History is served by the local adaptor, not fetched from ThingSpeak directly.
+  const ADAPTOR_HISTORY_URL = 'http://127.0.0.1:8081/history';
+  const FORECASTER_MODEL_URL = 'http://127.0.0.1:8082/model';
 
-    // Extracts the first measurement value from a SenML document (RFC 8428).
-    function senmlValue(payload) {
-        const records = payload.e;
-        return (Array.isArray(records) && records.length) ? records[0].v : undefined;
-    }
+  // Extracts the first measurement value from a SenML document (RFC 8428).
+  function senmlValue(payload) {
+    const records = payload.e;
+    return (Array.isArray(records) && records.length) ? records[0].v : undefined;
+  }
 
-    let mqttClient = null;
-    let currentUser = null;
-    let selectedRoomKey = "";
-    
-    let sensorDataCache = {
-        outdoor: { temp: "--", hum: "--", light: "--" }
-    };
-    let forecasts = {};  // zone -> { value, forTime, receivedAt }
-    let historyInterval = null;
+  let mqttClient = null;
+  let currentUser = null;
+  let selectedRoomKey = "";
 
-    function isAllowedZone(zone) {
-        return !!currentUser && currentUser.allowed_zones.some(r => r.replace(" ", "").toLowerCase() === zone);
-    }
+  let sensorDataCache = {
+    outdoor: { temp: "--", hum: "--", light: "--" }
+  };
+  let forecasts = {};  // zone -> { value, forTime, receivedAt }
+  let historyInterval = null;
 
-    // --- 0. Login & Service Discovery ---
-    const loginOverlay = document.getElementById('login-overlay');
-    const appWrapper = document.getElementById('app-wrapper');
-    const btnLogin = document.getElementById('btn-login');
-    const loginUser = document.getElementById('login-user');
-    const loginPass = document.getElementById('login-pass');
-    const loginError = document.getElementById('login-error');
-    const btnLogout = document.getElementById('btn-logout');
-    const roomSelectorContainer = document.getElementById('room-selector');
+  function isAllowedZone(zone) {
+    return !!currentUser && currentUser.allowed_zones.some(r => r.replace(" ", "").toLowerCase() === zone);
+  }
 
-    btnLogin.addEventListener('click', handleLogin);
-    loginPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+  // --- 0. Login & Service Discovery ---
+  const loginOverlay = document.getElementById('login-overlay');
+  const appWrapper = document.getElementById('app-wrapper');
+  const btnLogin = document.getElementById('btn-login');
+  const loginUser = document.getElementById('login-user');
+  const loginPass = document.getElementById('login-pass');
+  const loginError = document.getElementById('login-error');
+  const btnLogout = document.getElementById('btn-logout');
+  const roomSelectorContainer = document.getElementById('room-selector');
 
-    async function handleLogin() {
-        const uName = loginUser.value.trim();
-        const uPass = loginPass.value.trim();
-        document.getElementById('login-btn-text').innerText = "Connecting to Registry...";
+  btnLogin.addEventListener('click', handleLogin);
+  loginPass.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
 
-        try {
-            // The registry checks the password; the browser never sees the user list.
-            const loginResp = await fetch(`${REGISTRY_URL}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userName: uName, password: uPass })
-            });
-            const user = loginResp.ok ? await loginResp.json() : null;
-            const broker = await (await fetch(`${REGISTRY_URL}/broker`)).json();
+  async function handleLogin() {
+    const uName = loginUser.value.trim();
+    const uPass = loginPass.value.trim();
+    document.getElementById('login-btn-text').innerText = "Connecting to Registry...";
 
-            if (user) {
-                currentUser = user;
-                document.getElementById('user-avatar').innerText = user.userName.charAt(0);
-                
-                roomSelectorContainer.innerHTML = '';
-                user.allowed_zones.forEach((room, index) => {
-                    if(room !== "Outdoor") {
-                        const roomKey = room.replace(" ", "").toLowerCase();
-                        const btn = document.createElement('button');
-                        btn.className = `neumorphic-button px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${index === 0 ? 'neumorphic-pressed text-primary' : 'text-slate-500'}`;
-                        btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">meeting_room</span> ${room}`;
-                        
-                        btn.addEventListener('click', () => {
-                            document.querySelectorAll('#room-selector button').forEach(b => {
-                                b.classList.remove('neumorphic-pressed', 'text-primary');
-                                b.classList.add('text-slate-500');
-                            });
-                            btn.classList.add('neumorphic-pressed', 'text-primary');
-                            btn.classList.remove('text-slate-500');
+    try {
+      // The registry checks the password; the browser never sees the user list.
+      const loginResp = await fetch(`${REGISTRY_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userName: uName, password: uPass })
+      });
+      const user = loginResp.ok ? await loginResp.json() : null;
+      const broker = await (await fetch(`${REGISTRY_URL}/broker`)).json();
 
-                            selectedRoomKey = roomKey;
-                            document.getElementById('current-room-label').innerText = room;
-                            updateUIValues();
-                            
-                            if (!document.getElementById('view-history').classList.contains('hidden-view')) {
-                                loadHistoricalData();
-                            }
-                        });
+      if (user) {
+        currentUser = user;
+        document.getElementById('user-avatar').innerText = user.userName.charAt(0);
 
-                        roomSelectorContainer.appendChild(btn);
-                        if (index === 0) {
-                            selectedRoomKey = roomKey;
-                            document.getElementById('current-room-label').innerText = room;
-                        }
-                        if (!sensorDataCache[roomKey]) sensorDataCache[roomKey] = { temp: "--", hum: "--", light: "--" };
-                    }
-                });
+        roomSelectorContainer.innerHTML = '';
+        user.allowed_zones.forEach((room, index) => {
+          if(room !== "Outdoor") {
+            const roomKey = room.replace(" ", "").toLowerCase();
+            const btn = document.createElement('button');
+            btn.className = `neumorphic-button px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${index === 0 ? 'neumorphic-pressed text-primary' : 'text-slate-500'}`;
+            btn.innerHTML = `<span class="material-symbols-outlined text-[18px]">meeting_room</span> ${room}`;
 
-                document.getElementById('room-tabs-container').classList.remove('hidden-view');
-                loginOverlay.classList.add('hidden-view');
-                appWrapper.classList.remove('hidden-view');
-                loginError.classList.add('hidden-view');
-                
-                if(!mqttClient) initSystem(broker.webSocketURL);
-            } else {
-                throw new Error("Invalid User");
-            }
-        } catch (err) {
-            console.error(err);
-            loginError.classList.remove('hidden-view');
-            document.getElementById('login-btn-text').innerText = "Login Securely";
-        }
-    }
+            btn.addEventListener('click', () => {
+              document.querySelectorAll('#room-selector button').forEach(b => {
+                b.classList.remove('neumorphic-pressed', 'text-primary');
+                b.classList.add('text-slate-500');
+              });
+              btn.classList.add('neumorphic-pressed', 'text-primary');
+              btn.classList.remove('text-slate-500');
 
-    btnLogout.addEventListener('click', () => {
-        appWrapper.classList.add('hidden-view');
-        loginOverlay.classList.remove('hidden-view');
-        document.getElementById('room-tabs-container').classList.add('hidden-view');
-        if(mqttClient) {
-            mqttClient.end();
-            mqttClient = null;
-        }
-        // The next user must not see this user's rooms in the log.
-        document.getElementById('activity-log').innerHTML =
-            '<div class="text-sm text-slate-400 italic">Waiting for system actions...</div>';
-    });
+              selectedRoomKey = roomKey;
+              document.getElementById('current-room-label').innerText = room;
+              updateUIValues();
 
-    // --- 1. Tab Switching Logic ---
-    const navHome = document.getElementById('nav-home');
-    const navHistory = document.getElementById('nav-history');
-    const viewHome = document.getElementById('view-home');
-    const viewHistory = document.getElementById('view-history');
-
-    navHome.addEventListener('click', () => {
-        viewHome.classList.remove('hidden-view');
-        viewHistory.classList.add('hidden-view');
-        navHome.classList.add('bg-primary/10', 'text-primary');
-        navHome.classList.remove('text-slate-400');
-        navHistory.classList.remove('bg-primary/10', 'text-primary');
-        navHistory.classList.add('text-slate-400');
-        if(historyInterval) clearInterval(historyInterval);
-    });
-
-    navHistory.addEventListener('click', () => {
-        viewHistory.classList.remove('hidden-view');
-        viewHome.classList.add('hidden-view');
-        navHistory.classList.add('bg-primary/10', 'text-primary');
-        navHistory.classList.remove('text-slate-400');
-        navHome.classList.remove('bg-primary/10', 'text-primary');
-        navHome.classList.add('text-slate-400');
-
-        loadHistoricalData();
-        if(historyInterval) clearInterval(historyInterval);
-        historyInterval = setInterval(loadHistoricalData, 20000);
-    });
-
-    // --- 2. Window Control (continuous 0-100%) ---
-    const btnOpen = document.getElementById('btn-open');
-    const btnClose = document.getElementById('btn-close');
-    const winSlider = document.getElementById('win-slider');
-    const winValue = document.getElementById('win-value');
-    const winReason = document.getElementById('win-reason');
-
-    let windowStates = {};   // zone -> last known position
-    let windowReasons = {};  // zone -> last action reason
-    let sliderActive = false; // true while the user is dragging
-
-    function reflectSelectedWindow() {
-        const pos = windowStates[selectedRoomKey] ?? 0;
-        winValue.innerText = pos;
-        winSlider.value = pos;
-        winReason.innerText = windowReasons[selectedRoomKey] || '';
-    }
-
-    function publishPosition(position) {
-        if (!mqttClient || !selectedRoomKey) return;
-        windowStates[selectedRoomKey] = position;
-        const reason = `Dashboard (${currentUser.userName})`;
-        windowReasons[selectedRoomKey] = reason;
-        mqttClient.publish(`home/${selectedRoomKey}/actuator/window`,
-            JSON.stringify({ position: position, source: "manual", reason: reason }),
-            { retain: true });
-        reflectSelectedWindow();
-    }
-
-    winSlider.addEventListener('input', () => { sliderActive = true; winValue.innerText = winSlider.value; });
-    winSlider.addEventListener('change', () => { sliderActive = false; publishPosition(parseInt(winSlider.value)); });
-    btnOpen.addEventListener('click', () => publishPosition(100));
-    btnClose.addEventListener('click', () => publishPosition(0));
-
-    function updateUIValues() {
-        const indoor = sensorDataCache[selectedRoomKey] || {temp: "--", hum: "--", light: "--"};
-        const outdoor = sensorDataCache["outdoor"] || {temp: "--", hum: "--", light: "--"};
-        
-        document.getElementById('val-temp').innerText = indoor.temp !== undefined ? indoor.temp : "--";
-        document.getElementById('val-hum').innerText = indoor.hum !== undefined ? indoor.hum : "--";
-        document.getElementById('val-light').innerText = indoor.light !== undefined ? indoor.light : "--";
-        document.getElementById('val-temp-out').innerText = outdoor.temp !== undefined ? outdoor.temp : "--";
-        document.getElementById('val-hum-out').innerText = outdoor.hum !== undefined ? outdoor.hum : "--";
-        
-        const luxElem = document.getElementById('cam-lux');
-        if (luxElem) luxElem.innerText = (outdoor.light !== undefined && outdoor.light !== "--") ? outdoor.light + ' lx' : "-- lx";
-
-        const fc = forecasts[selectedRoomKey];
-        const fcElem = document.getElementById('val-forecast');
-        if (fc && Date.now() - fc.receivedAt < 60000 && typeof indoor.temp === 'number') {
-            const arrow = fc.value > indoor.temp + 0.1 ? '↗' : (fc.value < indoor.temp - 0.1 ? '↘' : '→');
-            const minutes = Math.max(1, Math.round((fc.forTime * 1000 - Date.now()) / 60000));
-            fcElem.innerText = `${arrow} ${fc.value.toFixed(1)} °C in ~${minutes} min (forecast)`;
-            fcElem.classList.remove('hidden-view');
-        } else {
-            fcElem.classList.add('hidden-view');
-        }
-
-        if (!sliderActive) reflectSelectedWindow();
-    }
-
-    // --- 3. MQTT Logic Initialization ---
-    function initSystem(brokerUrl) {
-        mqttClient = mqtt.connect(brokerUrl);
-
-        mqttClient.on('connect', () => {
-            document.getElementById('mqtt-ping').classList.replace('bg-red-400', 'bg-emerald-400');
-            document.getElementById('mqtt-dot').classList.replace('bg-red-500', 'bg-emerald-500');
-            const txt = document.getElementById('mqtt-text');
-            txt.classList.replace('text-red-600', 'text-emerald-600');
-            txt.innerText = 'Connected';
-
-            mqttClient.subscribe('home/+/sensor/+');
-            mqttClient.subscribe('home/+/actuator/window');
-            mqttClient.subscribe('home/+/forecast/temp');
-        });
-
-        mqttClient.on('message', (topic, message, packet) => {
-            try {
-                const parts = topic.split('/');
-                const zone = parts[1]; 
-                const type = parts[2]; 
-                const specific = parts[3]; 
-                const payload = JSON.parse(message.toString());
-                if (typeof payload !== 'object' || payload === null) return;
-
-                if (type === 'sensor') {
-                    const value = senmlValue(payload);
-                    if (value === undefined) return;
-                    if (!sensorDataCache[zone]) sensorDataCache[zone] = {};
-                    sensorDataCache[zone][specific] = value;
-                    if (zone === selectedRoomKey || zone === "outdoor") updateUIValues();
-                }
-                else if (type === 'forecast') {
-                    const value = senmlValue(payload);
-                    if (value === undefined) return;
-                    forecasts[zone] = { value: value, forTime: payload.e[0].t, receivedAt: Date.now() };
-                    if (zone === selectedRoomKey) updateUIValues();
-                }
-                else if (type === 'actuator') {
-                    windowStates[zone] = payload.position;
-                    windowReasons[zone] = payload.reason || '';
-                    if (zone === selectedRoomKey && !sliderActive) reflectSelectedWindow();
-
-                    // A retained message is the last known position, not a new
-                    // action, and the log only shows the user's own rooms.
-                    if (packet.retain || !isAllowedZone(zone)) return;
-
-                    const logContainer = document.getElementById('activity-log');
-                    if(logContainer.innerHTML.includes("Waiting for system actions")) logContainer.innerHTML = '';
-
-                    const timeString = new Date().toLocaleTimeString();
-                    const src = payload.source === 'manual' ? 'manual' : 'auto';
-                    const colorClass = (payload.position > 0) ? "text-primary" : "text-rose-500";
-
-                    const logEntry = document.createElement('div');
-                    logEntry.className = "flex justify-between items-start bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse shrink-0";
-                    logEntry.innerHTML = `
-                        <div class="flex flex-col pr-2">
-                            <span class="font-bold ${colorClass}">${zone.toUpperCase()} &rarr; ${payload.position}% <span class="text-slate-400 font-normal">(${src})</span></span>
-                            <span class="text-slate-400 text-[11px] leading-tight">${payload.reason || ''}</span>
-                        </div>
-                        <span class="text-slate-500 font-mono text-[10px] whitespace-nowrap">${timeString}</span>
-                    `;
-                    logContainer.prepend(logEntry);
-                    while (logContainer.children.length > 6) logContainer.removeChild(logContainer.lastChild);
-                }
-            } catch(e){}
-        });
-    }
-
-    // --- 4. History loading (via internal adaptor) ---
-    let historyChartInstance = null;
-
-    async function loadHistoricalData() {
-        try {
-            const response = await fetch(`${ADAPTOR_HISTORY_URL}?results=90`);
-            const data = await response.json();
-            const samples = data.samples || [];
-
-            // The adaptor already answers in zones and readings, so the page
-            // does not need to know how ThingSpeak stores them.
-            const pick = (s, zone, name) => {
-                const z = s.zones[zone];
-                return (z && z[name] !== undefined) ? z[name] : null;
-            };
-            const labels = samples.map(s => {
-                const d = new Date(s.t);
-                return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
+              if (!document.getElementById('view-history').classList.contains('hidden-view')) {
+                loadHistoricalData();
+              }
             });
 
-            const roomName = document.getElementById('current-room-label').innerText;
-            renderChart(labels, {
-                tempIn: samples.map(s => pick(s, selectedRoomKey, 'temp')),
-                tempOut: samples.map(s => pick(s, 'outdoor', 'temp')),
-                humIn: samples.map(s => pick(s, selectedRoomKey, 'hum')),
-                humOut: samples.map(s => pick(s, 'outdoor', 'hum')),
-                window: samples.map(s => pick(s, selectedRoomKey, 'window'))
-            }, roomName);
-        } catch (error) {
-            console.error("Error fetching historical data from internal Adaptor:", error);
-        }
-        loadModelInfo();
-    }
-
-    async function loadModelInfo() {
-        const info = document.getElementById('model-info');
-        try {
-            const models = await (await fetch(FORECASTER_MODEL_URL)).json();
-            const m = models[selectedRoomKey];
-            if (!m) {
-                info.innerText = 'Forecast model: still collecting data for this room';
-            } else if (!m.usable) {
-                info.innerText = `Forecast model: not accurate enough yet (error ${m.mae} °C vs ${m.mae_naive} °C for "no change"), forecasts paused`;
-            } else {
-                info.innerText = `Forecast model: ${m.samples} samples, error ${m.mae} °C vs ${m.mae_naive} °C for "no change" (${(m.mae_naive / m.mae).toFixed(1)}x better)`;
+            roomSelectorContainer.appendChild(btn);
+            if (index === 0) {
+              selectedRoomKey = roomKey;
+              document.getElementById('current-room-label').innerText = room;
             }
-        } catch (error) {
-            info.innerText = '';
-        }
-    }
-
-    function renderChart(labels, series, roomName) {
-        const ctx = document.getElementById('historyChart').getContext('2d');
-        if (historyChartInstance) historyChartInstance.destroy();
-
-        historyChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: `Indoor Temp (°C) [${roomName}]`,
-                        data: series.tempIn,
-                        borderColor: '#4f46e5',
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Outdoor Temp (°C)',
-                        data: series.tempOut,
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: `Window (%) [${roomName}]`,
-                        data: series.window,
-                        borderColor: '#2463eb',
-                        backgroundColor: 'rgba(36, 99, 235, 0.08)',
-                        borderWidth: 1.5,
-                        stepped: true,
-                        pointRadius: 0,
-                        fill: true,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: `Indoor Hum (%) [${roomName}]`,
-                        data: series.humIn,
-                        borderColor: '#0d9488',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        tension: 0.4,
-                        fill: false,
-                        hidden: true,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Outdoor Hum (%)',
-                        data: series.humOut,
-                        borderColor: '#e11d48',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        tension: 0.4,
-                        fill: false,
-                        hidden: true,
-                        yAxisID: 'y'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                spanGaps: true,
-                plugins: { legend: { position: 'top' } },
-                scales: {
-                    y: { beginAtZero: false, title: { display: true, text: '°C / %' } },
-                    y1: {
-                        position: 'right', min: 0, max: 100,
-                        grid: { drawOnChartArea: false },
-                        title: { display: true, text: 'Window %' }
-                    }
-                }
-            }
+            if (!sensorDataCache[roomKey]) sensorDataCache[roomKey] = { temp: "--", hum: "--", light: "--" };
+          }
         });
+
+        document.getElementById('room-tabs-container').classList.remove('hidden-view');
+        loginOverlay.classList.add('hidden-view');
+        appWrapper.classList.remove('hidden-view');
+        loginError.classList.add('hidden-view');
+
+        if(!mqttClient) initSystem(broker.webSocketURL);
+      } else {
+        throw new Error("Invalid User");
+      }
+    } catch (err) {
+      console.error(err);
+      loginError.classList.remove('hidden-view');
+      document.getElementById('login-btn-text').innerText = "Login Securely";
+    }
+  }
+
+  btnLogout.addEventListener('click', () => {
+    appWrapper.classList.add('hidden-view');
+    loginOverlay.classList.remove('hidden-view');
+    document.getElementById('room-tabs-container').classList.add('hidden-view');
+    if(mqttClient) {
+      mqttClient.end();
+      mqttClient = null;
+    }
+    // The next user must not see this user's rooms in the log.
+    document.getElementById('activity-log').innerHTML =
+      '<div class="text-sm text-slate-400 italic">Waiting for system actions...</div>';
+  });
+
+  // --- 1. Tab Switching Logic ---
+  const navHome = document.getElementById('nav-home');
+  const navHistory = document.getElementById('nav-history');
+  const viewHome = document.getElementById('view-home');
+  const viewHistory = document.getElementById('view-history');
+
+  navHome.addEventListener('click', () => {
+    viewHome.classList.remove('hidden-view');
+    viewHistory.classList.add('hidden-view');
+    navHome.classList.add('bg-primary/10', 'text-primary');
+    navHome.classList.remove('text-slate-400');
+    navHistory.classList.remove('bg-primary/10', 'text-primary');
+    navHistory.classList.add('text-slate-400');
+    if(historyInterval) clearInterval(historyInterval);
+  });
+
+  navHistory.addEventListener('click', () => {
+    viewHistory.classList.remove('hidden-view');
+    viewHome.classList.add('hidden-view');
+    navHistory.classList.add('bg-primary/10', 'text-primary');
+    navHistory.classList.remove('text-slate-400');
+    navHome.classList.remove('bg-primary/10', 'text-primary');
+    navHome.classList.add('text-slate-400');
+
+    loadHistoricalData();
+    if(historyInterval) clearInterval(historyInterval);
+    historyInterval = setInterval(loadHistoricalData, 20000);
+  });
+
+  // --- 2. Window Control (continuous 0-100%) ---
+  const btnOpen = document.getElementById('btn-open');
+  const btnClose = document.getElementById('btn-close');
+  const winSlider = document.getElementById('win-slider');
+  const winValue = document.getElementById('win-value');
+  const winReason = document.getElementById('win-reason');
+
+  let windowStates = {};   // zone -> last known position
+  let windowReasons = {};  // zone -> last action reason
+  let sliderActive = false; // true while the user is dragging
+
+  function reflectSelectedWindow() {
+    const pos = windowStates[selectedRoomKey] ?? 0;
+    winValue.innerText = pos;
+    winSlider.value = pos;
+    winReason.innerText = windowReasons[selectedRoomKey] || '';
+  }
+
+  function publishPosition(position) {
+    if (!mqttClient || !selectedRoomKey) return;
+    windowStates[selectedRoomKey] = position;
+    const reason = `Dashboard (${currentUser.userName})`;
+    windowReasons[selectedRoomKey] = reason;
+    mqttClient.publish(`home/${selectedRoomKey}/actuator/window`,
+      JSON.stringify({ position: position, source: "manual", reason: reason }),
+      { retain: true });
+    reflectSelectedWindow();
+  }
+
+  winSlider.addEventListener('input', () => { sliderActive = true; winValue.innerText = winSlider.value; });
+  winSlider.addEventListener('change', () => { sliderActive = false; publishPosition(parseInt(winSlider.value)); });
+  btnOpen.addEventListener('click', () => publishPosition(100));
+  btnClose.addEventListener('click', () => publishPosition(0));
+
+  function updateUIValues() {
+    const indoor = sensorDataCache[selectedRoomKey] || {temp: "--", hum: "--", light: "--"};
+    const outdoor = sensorDataCache["outdoor"] || {temp: "--", hum: "--", light: "--"};
+
+    const show = (id, value) => { document.getElementById(id).innerText = value ?? "--"; };
+    show('val-temp', indoor.temp);
+    show('val-hum', indoor.hum);
+    show('val-light', indoor.light);
+    show('val-temp-out', outdoor.temp);
+    show('val-hum-out', outdoor.hum);
+
+    const luxElem = document.getElementById('cam-lux');
+    if (luxElem) luxElem.innerText = (outdoor.light !== undefined && outdoor.light !== "--") ? outdoor.light + ' lx' : "-- lx";
+
+    const fc = forecasts[selectedRoomKey];
+    const fcElem = document.getElementById('val-forecast');
+    if (fc && Date.now() - fc.receivedAt < 60000 && typeof indoor.temp === 'number') {
+      const arrow = fc.value > indoor.temp + 0.1 ? '↗' : (fc.value < indoor.temp - 0.1 ? '↘' : '→');
+      const minutes = Math.max(1, Math.round((fc.forTime * 1000 - Date.now()) / 60000));
+      fcElem.innerText = `${arrow} ${fc.value.toFixed(1)} °C in ~${minutes} min (forecast)`;
+      fcElem.classList.remove('hidden-view');
+    } else {
+      fcElem.classList.add('hidden-view');
     }
 
-    document.getElementById('btn-refresh-history').addEventListener('click', loadHistoricalData);
+    if (!sliderActive) reflectSelectedWindow();
+  }
+
+  // --- 3. MQTT Logic Initialization ---
+  function initSystem(brokerUrl) {
+    mqttClient = mqtt.connect(brokerUrl);
+
+    mqttClient.on('connect', () => {
+      document.getElementById('mqtt-ping').classList.replace('bg-red-400', 'bg-emerald-400');
+      document.getElementById('mqtt-dot').classList.replace('bg-red-500', 'bg-emerald-500');
+      const txt = document.getElementById('mqtt-text');
+      txt.classList.replace('text-red-600', 'text-emerald-600');
+      txt.innerText = 'Connected';
+
+      mqttClient.subscribe('home/+/sensor/+');
+      mqttClient.subscribe('home/+/actuator/window');
+      mqttClient.subscribe('home/+/forecast/temp');
+    });
+
+    mqttClient.on('message', (topic, message, packet) => {
+      try {
+        const parts = topic.split('/');
+        const zone = parts[1];
+        const type = parts[2];
+        const specific = parts[3];
+        const payload = JSON.parse(message.toString());
+        if (typeof payload !== 'object' || payload === null) return;
+
+        if (type === 'sensor') {
+          const value = senmlValue(payload);
+          if (value === undefined) return;
+          if (!sensorDataCache[zone]) sensorDataCache[zone] = {};
+          sensorDataCache[zone][specific] = value;
+          if (zone === selectedRoomKey || zone === "outdoor") updateUIValues();
+        }
+        else if (type === 'forecast') {
+          const value = senmlValue(payload);
+          if (value === undefined) return;
+          forecasts[zone] = { value: value, forTime: payload.e[0].t, receivedAt: Date.now() };
+          if (zone === selectedRoomKey) updateUIValues();
+        }
+        else if (type === 'actuator') {
+          windowStates[zone] = payload.position;
+          windowReasons[zone] = payload.reason || '';
+          if (zone === selectedRoomKey && !sliderActive) reflectSelectedWindow();
+
+          // A retained message is the last known position, not a new
+          // action, and the log only shows the user's own rooms.
+          if (packet.retain || !isAllowedZone(zone)) return;
+
+          const logContainer = document.getElementById('activity-log');
+          if(logContainer.innerHTML.includes("Waiting for system actions")) logContainer.innerHTML = '';
+
+          const timeString = new Date().toLocaleTimeString();
+          const src = payload.source === 'manual' ? 'manual' : 'auto';
+          const colorClass = (payload.position > 0) ? "text-primary" : "text-rose-500";
+
+          const logEntry = document.createElement('div');
+          logEntry.className = "flex justify-between items-start bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse shrink-0";
+          logEntry.innerHTML = `
+            <div class="flex flex-col pr-2">
+              <span class="font-bold ${colorClass}">${zone.toUpperCase()} &rarr; ${payload.position}% <span class="text-slate-400 font-normal">(${src})</span></span>
+              <span class="text-slate-400 text-[11px] leading-tight">${payload.reason || ''}</span>
+            </div>
+            <span class="text-slate-500 font-mono text-[10px] whitespace-nowrap">${timeString}</span>
+          `;
+          logContainer.prepend(logEntry);
+          while (logContainer.children.length > 6) logContainer.removeChild(logContainer.lastChild);
+        }
+      } catch(e){}
+    });
+  }
+
+  // --- 4. History loading (via internal adaptor) ---
+  let historyChartInstance = null;
+
+  async function loadHistoricalData() {
+    try {
+      const response = await fetch(`${ADAPTOR_HISTORY_URL}?results=90`);
+      const data = await response.json();
+      const samples = data.samples || [];
+
+      // The adaptor already answers in zones and readings, so the page
+      // does not need to know how ThingSpeak stores them.
+      const pick = (s, zone, name) => {
+        const z = s.zones[zone];
+        return (z && z[name] !== undefined) ? z[name] : null;
+      };
+      const labels = samples.map(s => {
+        const d = new Date(s.t);
+        return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
+      });
+
+      const roomName = document.getElementById('current-room-label').innerText;
+      renderChart(labels, {
+        tempIn: samples.map(s => pick(s, selectedRoomKey, 'temp')),
+        tempOut: samples.map(s => pick(s, 'outdoor', 'temp')),
+        humIn: samples.map(s => pick(s, selectedRoomKey, 'hum')),
+        humOut: samples.map(s => pick(s, 'outdoor', 'hum')),
+        window: samples.map(s => pick(s, selectedRoomKey, 'window'))
+      }, roomName);
+    } catch (error) {
+      console.error("Error fetching historical data from internal Adaptor:", error);
+    }
+    loadModelInfo();
+  }
+
+  async function loadModelInfo() {
+    const info = document.getElementById('model-info');
+    try {
+      const models = await (await fetch(FORECASTER_MODEL_URL)).json();
+      const m = models[selectedRoomKey];
+      if (!m) {
+        info.innerText = 'Forecast model: still collecting data for this room';
+      } else if (!m.usable) {
+        info.innerText = `Forecast model: not accurate enough yet (error ${m.mae} °C vs ${m.mae_naive} °C for "no change"), forecasts paused`;
+      } else {
+        info.innerText = `Forecast model: ${m.samples} samples, error ${m.mae} °C vs ${m.mae_naive} °C for "no change" (${(m.mae_naive / m.mae).toFixed(1)}x better)`;
+      }
+    } catch (error) {
+      info.innerText = '';
+    }
+  }
+
+  function renderChart(labels, series, roomName) {
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    if (historyChartInstance) historyChartInstance.destroy();
+
+    // Common settings of a line; each series only lists what differs.
+    const line = (label, data, color, extra) =>
+      ({ label, data, borderColor: color, borderWidth: 2, tension: 0.4, fill: false, yAxisID: 'y', ...extra });
+
+    historyChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          line(`Indoor Temp (°C) [${roomName}]`, series.tempIn, '#4f46e5',
+            { backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true }),
+          line('Outdoor Temp (°C)', series.tempOut, '#f59e0b',
+            { backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true }),
+          line(`Window (%) [${roomName}]`, series.window, '#2463eb',
+            { backgroundColor: 'rgba(36, 99, 235, 0.08)', borderWidth: 1.5, tension: 0,
+             stepped: true, pointRadius: 0, fill: true, yAxisID: 'y1' }),
+          line(`Indoor Hum (%) [${roomName}]`, series.humIn, '#0d9488', { borderDash: [5, 5], hidden: true }),
+          line('Outdoor Hum (%)', series.humOut, '#e11d48', { borderDash: [5, 5], hidden: true })
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        spanGaps: true,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          y: { beginAtZero: false, title: { display: true, text: '°C / %' } },
+          y1: {
+            position: 'right', min: 0, max: 100,
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Window %' }
+          }
+        }
+      }
+    });
+  }
+
+  document.getElementById('btn-refresh-history').addEventListener('click', loadHistoricalData);
 </script>
 </body>
 </html>

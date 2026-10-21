@@ -109,7 +109,10 @@ class Analyzer:
         while True:
             time.sleep(50)
             try:
-                requests.put(f"{self.registry_url}/servicesList", json={"id": self.service_id}, timeout=5)
+                resp = requests.put(f"{self.registry_url}/servicesList", json={"id": self.service_id}, timeout=5)
+                if resp.status_code == 404:
+                    # Our entry expired (e.g. the registry was down for a while): register again.
+                    requests.post(f"{self.registry_url}/servicesList", json=self.service_info, timeout=5)
             except Exception:
                 pass
 

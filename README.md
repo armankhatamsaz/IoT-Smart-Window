@@ -56,8 +56,9 @@ network, so it uses the ports published on the host.
 | Analyzer           | `control_logic/`      | Control logic that decides how far to open each window.                   |
 | ThingSpeak adaptor | `thingspeak_adaptor/` | Logs telemetry to the cloud and serves the history over REST.             |
 | Forecaster         | `forecaster/`         | Learns each room from the history and forecasts its temperature.          |
-| Telegram bot       | `telegram_bot/`       | Login, live status, forecast, manual control and alerts over Telegram.    |
+| Telegram bot       | `telegram_bot/`       | Login, live status, forecast, manual control, alerts and comfort report.  |
 | Dashboard          | `dashboard/`          | Web UI for live monitoring, manual control and history charts.            |
+| Catalog admin      | `tools/`              | Command-line tool to manage users and zones while the system runs.        |
 
 ## MQTT topics
 
@@ -114,7 +115,8 @@ without touching the source code.
 
 Passwords never leave the registry: they are removed from every `GET` response and
 checked only by `POST /login` (401 on a wrong password). Devices and services that
-stop sending heartbeats are evicted automatically after 150 s. The Telegram bot stores
+stop sending heartbeats are evicted automatically after 150 s; if a running one finds
+its entry gone, it registers again on the next heartbeat. The Telegram bot stores
 each user's `chatID` in `usersList`, so users stay logged in when the bot restarts.
 
 ### Zone gateways (host ports 8091-8094)
@@ -218,6 +220,31 @@ Default demo users:
 | user1    | 1234     | Living Room, Bedroom 1      |
 | user2    | 1234     | Living Room, Bedroom 2      |
 
+### Managing users at runtime
+
+`tools/catalog_admin.py` changes the catalog through its REST API while everything is
+running; the new settings apply at the user's next login, with no restart and no code
+change. Zones are checked against the gateways registered in the catalog.
+
+```bash
+python tools/catalog_admin.py users
+python tools/catalog_admin.py devices
+python tools/catalog_admin.py add-user user3 1234 "Living Room" "Bedroom 2"
+python tools/catalog_admin.py set-zones 3 "Bedroom 1"
+python tools/catalog_admin.py remove-user 3
+```
+
+A new room works the same way: a new gateway with its own settings file (zone name,
+topic, REST address) registers itself, and its zone can then be given to users.
+
+## Comfort report
+
+The bot's **📊 Report** button summarizes the last hours for each of the user's rooms:
+average, minimum and maximum temperature, how much of the time the temperature and the
+humidity stayed in the comfort range, how often the window was open, and the accuracy
+of the forecast model. The bot finds the adaptor's `/history` and the forecaster's
+`/model` through the catalog; the comfort range is in `telegram_bot/settings.json`.
+
 ## Running the project
 
 Requirements: Docker and Docker Compose.
@@ -283,8 +310,9 @@ python -m pytest tests
 ```
 
 The tests cover the control rules, the forecaster (including a closed-loop run of the
-simulated room with the real analyzer), the history merge in the adaptor and the
-catalog's TTL and password handling.
+simulated room with the real analyzer), the history merge in the adaptor, the
+catalog's TTL and password handling, the comfort report, and the admin tool against a
+real registry over HTTP.
 
 ## Configuration
 

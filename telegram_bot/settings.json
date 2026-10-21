@@ -1,3 +1,10 @@
 {
-    "registry_url": "http://registry:8080"
+    "registry_url": "http://registry:8080",
+    "report_hours": 3,
+    "comfort": {
+        "temp_min": 22.0,
+        "temp_max": 26.0,
+        "hum_min": 30.0,
+        "hum_max": 65.0
+    }
 }

@@ -15,6 +15,8 @@ from telepot.namedtuple import (
     InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove,
 )
 
+from report import ComfortReport
+
 PRESETS = [("Close", 0), ("25%", 25), ("50%", 50), ("75%", 75), ("Open", 100)]
 PANEL_REFRESH_SEC = 10   # how often an open panel refreshes itself
 ALERT_HISTORY = 5        # alerts kept and shown per zone
@@ -123,6 +125,9 @@ class TelegramBot:
                 self.registry_url = settings.get("registry_url", "http://registry:8080")
                 # The token is a secret: it comes from .env, never from a committed file.
                 self.bot_token = os.environ.get("TELEGRAM_BOT_TOKEN") or settings.get("bot_token")
+                self.report_hours = settings.get("report_hours", 3)
+                self.comfort = settings.get("comfort", {"temp_min": 22.0, "temp_max": 26.0,
+                                                        "hum_min": 30.0, "hum_max": 65.0})
         except FileNotFoundError:
             print("Telegram bot settings.json not found.")
             sys.exit(1)
@@ -156,7 +161,10 @@ class TelegramBot:
         while True:
             time.sleep(50)
             try:
-                requests.put(f"{self.registry_url}/servicesList", json={"id": self.service_id}, timeout=5)
+                resp = requests.put(f"{self.registry_url}/servicesList", json={"id": self.service_id}, timeout=5)
+                if resp.status_code == 404:
+                    # Our entry expired (e.g. the registry was down for a while): register again.
+                    requests.post(f"{self.registry_url}/servicesList", json=self.service_info, timeout=5)
             except Exception:
                 pass
 
@@ -168,6 +176,15 @@ class TelegramBot:
             return resp.json() if resp.status_code == 200 else None
         except Exception:
             return None
+
+    def find_service(self, endpoint):
+        """Full URL of the REST service that offers this endpoint, from the catalog."""
+        services = requests.get(f"{self.registry_url}/servicesList", timeout=5).json()
+        for service in services:
+            for detail in service.get("servicesDetails", []):
+                if detail.get("serviceType") == "REST" and endpoint in detail.get("endpoints", []):
+                    return f"http://{detail['serviceIP']}{endpoint}"
+        return None
 
     def save_chat_id(self, user, chat_id):
         # Link (or unlink, with None) the Telegram chat to the user in the
@@ -289,9 +306,62 @@ class TelegramBot:
         rows = [[InlineKeyboardButton(text=r, callback_data=f"zone:{self.zone_key(r)}")
                  for r in rooms[i:i + 2]] for i in range(0, len(rooms), 2)]
         rows.append([
+            InlineKeyboardButton(text="\U0001f4ca Report", callback_data="report"),
             InlineKeyboardButton(text="\U0001f504 Refresh", callback_data="home"),
             InlineKeyboardButton(text="\U0001f6aa Log out", callback_data="logout"),
         ])
+        return "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=rows)
+
+    def render_report(self, user):
+        # The bot asks the catalog where the history and the forecast models
+        # are, so it does not need to know any other service's address.
+        rooms = [r for r in user.get('allowed_zones', []) if r != "Outdoor"]
+        lines = [f"\U0001f4ca <b>Comfort report</b> · last {self.report_hours} h", ""]
+        try:
+            history_url = self.find_service("/history")
+            results = min(8000, int(self.report_hours * 3600 / 15))
+            samples = requests.get(history_url, params={"results": results}, timeout=20).json()["samples"]
+            report = ComfortReport(samples, self.comfort, self.report_hours)
+        except Exception:
+            report = None
+        try:
+            models = requests.get(self.find_service("/model"), timeout=5).json()
+        except Exception:
+            models = {}
+
+        if report is None or not report.samples:
+            lines.append("<i>No stored data for this period yet.</i>")
+        else:
+            band = f"{self.comfort['temp_min']:g}–{self.comfort['temp_max']:g} °C"
+            for room in rooms:
+                tz = self.zone_key(room)
+                temp = report.temperature(tz)
+                if temp is None:
+                    continue
+                lines.append(f"<b>{esc(room)}</b>")
+                lines.append(f"    \U0001f321 avg {temp['avg']:.1f} °C · min {temp['min']:.1f} · max {temp['max']:.1f}")
+                lines.append(f"    ✅ comfortable {temp['comfort']}% of the time ({band})")
+                hum = report.humidity_ok(tz)
+                if hum is not None:
+                    lines.append(f"    \U0001f4a7 humidity in range {hum}% of the time")
+                win = report.window(tz)
+                if win is not None:
+                    lines.append(f"    \U0001fa9f open {win['open']}% of the time · opened {win['openings']} times")
+                model = models.get(tz)
+                if model and model.get("usable"):
+                    lines.append(f"    \U0001f4c8 forecast error {model['mae']} °C "
+                                 f"({model['mae_naive'] / model['mae']:.1f}× better than \"no change\")")
+                lines.append("")
+            outdoor = report.temperature("outdoor")
+            if outdoor:
+                lines.append(f"\U0001f333 Outdoor avg {outdoor['avg']:.1f} °C · "
+                             f"min {outdoor['min']:.1f} · max {outdoor['max']:.1f}")
+            lines.append(f"<i>{len(report.samples)} stored samples · {time.strftime('%H:%M')}</i>")
+
+        rows = [[
+            InlineKeyboardButton(text="⬅ Zones", callback_data="home"),
+            InlineKeyboardButton(text="\U0001f504 Refresh", callback_data="report"),
+        ]]
         return "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=rows)
 
     def render_zone(self, room):
@@ -354,6 +424,9 @@ class TelegramBot:
         if not user:
             return None
         view = self.panel.get(chat_id, {}).get("view", ("home",))
+        if view[0] == "report":
+            # Built once when asked for; the live refresh just keeps it on screen.
+            return self.panel[chat_id].get("report") or self.render_home(user)
         if view[0] in ("zone", "hist"):
             room = next((r for r in user['allowed_zones'] if self.zone_key(r) == view[1]), None)
             if room:
@@ -444,6 +517,11 @@ class TelegramBot:
         if data == "home":
             self.update_panel(chat_id, view=("home",))
             self.bot.answerCallbackQuery(query_id)
+
+        elif data == "report":
+            self.bot.answerCallbackQuery(query_id, text="Building the report…")
+            self.panel[chat_id]["report"] = self.render_report(user)
+            self.update_panel(chat_id, view=("report",))
 
         elif data == "logout":
             self.save_chat_id(user, None)

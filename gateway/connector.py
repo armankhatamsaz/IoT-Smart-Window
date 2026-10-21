@@ -171,7 +171,10 @@ class Gateway:
         while True:
             time.sleep(50)
             try:
-                requests.put(f"{self.registry_url}/devicesList", json={"id": self.device_id}, timeout=5)
+                resp = requests.put(f"{self.registry_url}/devicesList", json={"id": self.device_id}, timeout=5)
+                if resp.status_code == 404:
+                    # Our entry expired (e.g. the registry was down for a while): register again.
+                    requests.post(f"{self.registry_url}/devicesList", json=self.device_info, timeout=5)
             except Exception:
                 pass
 
