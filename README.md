@@ -189,8 +189,8 @@ ThingSpeak rows), from the history stored by the adaptor.
   never across a gap in the data.
 - **Validation** – the oldest 80% of the examples is used for training and the newest
   20% for testing. The model is compared with the naive guess "the temperature will
-  not change" and is only used if it beats it. The result is shown on the dashboard
-  and at `GET /model`.
+  not change" and is only used if its error is at least 10% lower. The result is
+  shown on the dashboard and at `GET /model`.
 - **Retraining** – every 10 minutes. After a fresh start it needs about 20 minutes of
   data (60 rows) before the first model is ready.
 

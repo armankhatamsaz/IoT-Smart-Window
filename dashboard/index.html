@@ -614,9 +614,13 @@
         try {
             const models = await (await fetch(FORECASTER_MODEL_URL)).json();
             const m = models[selectedRoomKey];
-            info.innerText = m
-                ? `Forecast model: ${m.samples} samples, error ${m.mae} °C vs ${m.mae_naive} °C for "no change" (${(m.mae_naive / m.mae).toFixed(1)}x better)`
-                : 'Forecast model: still collecting data for this room';
+            if (!m) {
+                info.innerText = 'Forecast model: still collecting data for this room';
+            } else if (!m.usable) {
+                info.innerText = `Forecast model: not accurate enough yet (error ${m.mae} °C vs ${m.mae_naive} °C for "no change"), forecasts paused`;
+            } else {
+                info.innerText = `Forecast model: ${m.samples} samples, error ${m.mae} °C vs ${m.mae_naive} °C for "no change" (${(m.mae_naive / m.mae).toFixed(1)}x better)`;
+            }
         } catch (error) {
             info.innerText = '';
         }

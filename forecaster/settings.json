@@ -10,6 +10,7 @@
         "horizon_steps": 3,
         "max_step_seconds": 60,
         "test_fraction": 0.2,
+        "min_improvement": 0.1,
         "retrain_minutes": 10,
         "publish_seconds": 10
     }

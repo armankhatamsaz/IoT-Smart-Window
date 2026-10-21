@@ -112,7 +112,8 @@ class Forecaster:
         defaults = {
             "history_results": 2000, "history_hours": 6, "min_samples": 60,
             "horizon_steps": 3, "max_step_seconds": 60,
-            "test_fraction": 0.2, "retrain_minutes": 10, "publish_seconds": 10,
+            "test_fraction": 0.2, "min_improvement": 0.1,
+            "retrain_minutes": 10, "publish_seconds": 10,
         }
         try:
             with open(filepath, 'r') as f:
@@ -208,6 +209,10 @@ class Forecaster:
         # Naive baseline: "the temperature will stay where it is".
         mae_naive = mean_absolute_error(y[split:], np.zeros(len(y) - split))
 
+        # Only worth using if it is clearly better than the naive guess; with
+        # little data a model can win by chance on a small test set.
+        usable = mae <= (1 - self.cfg["min_improvement"]) * mae_naive
+
         # The live model is refitted on all the data.
         model = LinearRegression().fit(X, y)
         return {
@@ -215,7 +220,7 @@ class Forecaster:
             "samples": len(y),
             "mae": round(float(mae), 3),
             "mae_naive": round(float(mae_naive), 3),
-            "usable": bool(mae < mae_naive),
+            "usable": bool(usable),
             "coefficients": {name: round(float(c), 4) for name, c in zip(FEATURES, model.coef_)},
             "intercept": round(float(model.intercept_), 4),
             "horizon_s": int(self.cfg["horizon_steps"] * self.step_seconds),
@@ -248,7 +253,7 @@ class Forecaster:
                 print(f"[{zone}] not enough recent history yet ({len(samples)} samples), skipping")
                 continue
             models[zone] = info
-            verdict = "in use" if info["usable"] else "not better than naive, held back"
+            verdict = "in use" if info["usable"] else "not clearly better than naive, held back"
             print(f"[{zone}] trained on {info['samples']} samples: MAE {info['mae']} C "
                   f"vs naive {info['mae_naive']} C ({verdict})")
         self.models = models
