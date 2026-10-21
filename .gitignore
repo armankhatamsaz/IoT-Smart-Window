@@ -1,1 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
 venv/
+.venv/
+
+# Environment
+.env
+
+# Local assistant notes / tooling
+CLAUDE.md
+.claude/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Runtime state (registry regenerates it on startup)
+registry/catalog.json

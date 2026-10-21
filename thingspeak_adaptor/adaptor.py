@@ -1,17 +1,21 @@
+import os
+import sys
 import time
 import json
-import requests
-import threading
 import random
 import string
-import sys
-import cherrypy
+import threading
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+import cherrypy
+import requests
 import paho.mqtt.client as mqtt
 
-# --- بخش وب‌سرور (REST API) برای پاسخ به داشبورد ---
+THINGSPEAK_URL = "https://api.thingspeak.com"
+MAX_RESULTS = 8000  # ThingSpeak returns at most this many entries per request
+
+
 def cors():
     cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
     cherrypy.response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
@@ -19,8 +23,22 @@ def cors():
 
 cherrypy.tools.cors = cherrypy.Tool('before_handler', cors)
 
+
+def senml_value(payload):
+    """Extract the first measurement value from a SenML document (RFC 8428)."""
+    records = payload.get("e")
+    if isinstance(records, list) and records:
+        return records[0].get("v")
+    return None
+
+
 class AdaptorWebServer(object):
+    """REST interface to the stored data. Nobody else (the dashboard included)
+    talks to ThingSpeak or needs to know its field numbers."""
     exposed = True
+
+    def __init__(self, adaptor):
+        self.adaptor = adaptor
 
     @cherrypy.tools.json_out()
     def OPTIONS(self, *uri, **params):
@@ -28,64 +46,74 @@ class AdaptorWebServer(object):
 
     @cherrypy.tools.json_out()
     def GET(self, *uri, **params):
-        # وقتی داشبورد درخواست دیتای تاریخی میکنه
         if len(uri) > 0 and uri[0] == "history":
-            # این کلیدها از داشبورد به اینجا منتقل شدن تا داشبورد "Agnostic" بشه
-            TS_CHANNEL_ID = "3279973"
-            TS_READ_KEY = "M45BE295HJ63IT3T"
-            url = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_KEY}&results=20"
-            
             try:
-                resp = requests.get(url, timeout=10)
-                return resp.json() # دیتا رو از تینگ‌اسپیک میگیره و میده به داشبورد
+                results = int(params.get("results", self.adaptor.history_results))
+            except ValueError:
+                raise cherrypy.HTTPError(400, "results must be a whole number")
+            results = max(1, min(results, MAX_RESULTS))
+            try:
+                return {"samples": self.adaptor.read_history(results)}
             except Exception as e:
-                raise cherrypy.HTTPError(500, f"Error fetching data from DB: {str(e)}")
-        else:
-            return {"message": "Adaptor REST API is running. Use /history to get timeseries data."}
+                raise cherrypy.HTTPError(502, f"Could not read from ThingSpeak: {e}")
+        return {"message": "ThingSpeak adaptor. GET /history?results=N returns the stored measurements."}
 
-# --- بخش اصلی آداپتور (MQTT + ارسال به کلاد) ---
-class MultiChannelThingSpeakAdaptor:
+
+class ThingSpeakAdaptor:
     def __init__(self, settings_file='settings.json'):
         self.load_settings(settings_file)
         self.broker = None
         self.port = None
         self.transport = None
-        
-        # شناسه یکتا
+        self.client = None
+
         random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
         self.service_id = f"ts_adaptor_{random_suffix}"
 
-        # 🚀 ارتقای ساختار کاتالوگ طبق نظر استاد (اضافه شدن REST و serviceIP)
+        # MQTT for ingesting data, REST for serving it back. The REST address
+        # is the one other containers use to reach us.
         self.service_info = {
             "serviceID": self.service_id,
-            "serviceName": "ThingSpeak Cloud Logger & Provider",
+            "serviceName": self.service_name,
             "availableServices": ["MQTT", "REST"],
             "servicesDetails": [
                 {
                     "serviceType": "MQTT",
-                    "topic": ["home/+/sensor/+"]
+                    "topic": ["home/+/sensor/+", "home/+/actuator/window"]
                 },
                 {
                     "serviceType": "REST",
-                    "serviceIP": "127.0.0.1:8081" # آداپتور روی این پورت جواب میده
+                    "serviceIP": self.service_ip,
+                    "endpoints": ["/history"]
                 }
             ]
         }
 
-        self.buffers = {channel["api_key"]: {} for channel in self.channels}
+        # One outgoing buffer per channel.
+        self.buffers = {channel["name"]: {} for channel in self.channels}
 
     def load_settings(self, filepath):
         try:
             with open(filepath, 'r') as f:
                 settings = json.load(f)
                 self.registry_url = settings.get("registry_url", "http://registry:8080")
+                self.service_name = settings.get("service_name", "ThingSpeak Adaptor")
+                self.service_ip = settings.get("service_ip", "adaptor:8081")
+                self.history_results = settings.get("history_results", 100)
                 self.channels = settings.get("channels", [])
         except FileNotFoundError:
-            print("❌ FATAL ERROR: settings.json not found for Adaptor!")
+            print("Adaptor settings.json not found.")
             sys.exit(1)
 
+        # API keys are secrets, so they come from .env instead of this file.
+        for number, channel in enumerate(self.channels, start=1):
+            channel["api_key"] = os.environ.get(f"THINGSPEAK_CH{number}_WRITE_KEY") or channel.get("api_key", "")
+            channel["read_key"] = os.environ.get(f"THINGSPEAK_CH{number}_READ_KEY") or channel.get("read_key", "")
+            if not channel["api_key"]:
+                print(f"[{channel['name']}] no write key set, this channel is not logged.")
+
     def discover_and_register(self):
-        print(f"🔍 Contacting Registry at {self.registry_url}...")
+        print(f"Contacting registry at {self.registry_url}...")
         while True:
             try:
                 resp = requests.get(f"{self.registry_url}/broker", timeout=5)
@@ -94,25 +122,24 @@ class MultiChannelThingSpeakAdaptor:
                     self.broker = config["IP"]
                     self.port = config["port"]
                     self.transport = config["transport"]
-                    print("✅ Registry Config received!")
+                    print("Registry config received.")
                     break
             except Exception:
                 time.sleep(3)
-                
+
         try:
             resp = requests.post(f"{self.registry_url}/servicesList", json=self.service_info)
             if resp.status_code == 200:
-                print("✅ TS Adaptor registered in Catalog with REST & MQTT capabilities!")
+                print("Adaptor registered in catalog (MQTT + REST).")
         except Exception as e:
-            print(f"❌ Registration failed: {e}")
+            print(f"Registration failed: {e}")
 
     def heartbeat_worker(self):
-        """تپش قلب هر 50 ثانیه"""
         while True:
             time.sleep(50)
             try:
                 requests.put(
-                    f"{self.registry_url}/servicesList", 
+                    f"{self.registry_url}/servicesList",
                     json={"id": self.service_id},
                     timeout=5
                 )
@@ -121,50 +148,103 @@ class MultiChannelThingSpeakAdaptor:
 
     def on_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            print("✅ Adaptor Connected to MQTT Broker!")
+            print("Adaptor connected to MQTT broker.")
             for channel in self.channels:
                 for topic in channel["mapping"].keys():
                     client.subscribe(topic)
         else:
-            print(f"❌ Connection failed: {rc}")
+            print(f"MQTT connection failed: {rc}")
 
     def on_message(self, client, userdata, msg):
         try:
-            topic = msg.topic
             payload = json.loads(msg.payload.decode())
-            
+            if not isinstance(payload, dict):
+                return
+            # Sensors publish SenML; the window actuator publishes a plain position.
+            value = senml_value(payload)
+            if value is None:
+                value = payload.get("position")
+            if value is None:
+                return
             for channel in self.channels:
-                if topic in channel["mapping"]:
-                    field_name = channel["mapping"][topic]
-                    api_key = channel["api_key"]
-                    self.buffers[api_key][field_name] = payload.get("value")
+                if msg.topic in channel["mapping"]:
+                    self.buffers[channel["name"]][channel["mapping"][msg.topic]] = value
         except json.JSONDecodeError:
             pass
 
     def thingspeak_worker(self):
-        url = "https://api.thingspeak.com/update"
+        url = f"{THINGSPEAK_URL}/update"
         while True:
-            time.sleep(20) # دور زدن محدودیت 15 ثانیه‌ای تینگ‌اسپیک
-            
+            # ThingSpeak throttles free channels to one update per 15s.
+            time.sleep(20)
+
             for channel in self.channels:
-                api_key = channel["api_key"]
-                channel_name = channel["name"]
-                buffer_data = self.buffers[api_key]
-                
-                if buffer_data:
-                    data = {"api_key": api_key}
-                    data.update(buffer_data)
-                    
-                    try:
-                        response = requests.post(url, data=data, timeout=10)
-                        if response.status_code == 200:
-                            print(f"☁️ [{channel_name}] Uploaded successfully!")
-                        else:
-                            print(f"⚠️ [{channel_name}] Upload failed. HTTP: {response.status_code}")
-                    except Exception as e:
-                        pass
-                    
-                    self.buffers[api_key].clear()
+                name = channel["name"]
+                if not channel["api_key"] or not self.buffers[name]:
+                    continue
+
+                # Swap in an empty buffer first, so values that arrive during
+                # the upload are not lost when we clear.
+                sending = self.buffers[name]
+                self.buffers[name] = {}
+
+                data = {"api_key": channel["api_key"]}
+                data.update(sending)
+                uploaded = False
+                try:
+                    response = requests.post(url, data=data, timeout=10)
+                    # ThingSpeak answers 200 with a body of "0" when it rejects an update.
+                    uploaded = response.status_code == 200 and response.text.strip() != "0"
+                except Exception:
+                    pass
+
+                if uploaded:
+                    print(f"[{channel['name']}] uploaded.")
+                else:
+                    print(f"[{channel['name']}] not accepted by ThingSpeak, retrying next round.")
+                    for field, value in sending.items():
+                        self.buffers[name].setdefault(field, value)
+
+    def read_history(self, results):
+        """Read every channel back from ThingSpeak and merge them into one
+        time-ordered list of snapshots: {"t": time, "zones": {zone: {name: value}}}.
+
+        The first channel sets the time grid. Values from the other channels are
+        carried forward onto it, which also fills the gaps of readings that are
+        only stored when they change (the window position)."""
+        rows = []
+        for index, channel in enumerate(self.channels):
+            if not channel.get("channel_id") or not channel.get("read_key"):
+                continue  # write-only channel, nothing to read back
+            try:
+                resp = requests.get(
+                    f"{THINGSPEAK_URL}/channels/{channel['channel_id']}/feeds.json",
+                    params={"api_key": channel["read_key"], "results": results},
+                    timeout=15
+                )
+                resp.raise_for_status()
+                feeds = resp.json().get("feeds", [])
+            except Exception as e:
+                if index == 0:
+                    raise  # without the main channel there is no history at all
+                print(f"[{channel['name']}] could not be read back: {e}")
+                continue
+            for entry in feeds:
+                rows.append((entry["created_at"], index, channel, entry))
+
+        rows.sort(key=lambda row: (row[0], row[1]))
+        state = {}
+        samples = []
+        for created_at, index, channel, entry in rows:
+            for topic, field in channel["mapping"].items():
+                raw = entry.get(field)
+                if raw in (None, ""):
+                    continue
+                parts = topic.split("/")  # home/<zone>/<sensor|actuator>/<name>
+                state.setdefault(parts[1], {})[parts[3]] = float(raw)
+            if index == 0:
+                samples.append({"t": created_at, "zones": {z: dict(v) for z, v in state.items()}})
+        return samples[-results:]
 
     def start(self):
         self.discover_and_register()
@@ -174,27 +254,28 @@ class MultiChannelThingSpeakAdaptor:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
-        print("⏳ Connecting to Broker...")
+        print("Connecting to broker...")
         self.client.connect(self.broker, self.port, 60)
         self.client.loop_start()
-        
+
         threading.Thread(target=self.thingspeak_worker, daemon=True).start()
-        
-        # 🚀 به جای حلقه بی‌نهایت قبلی، حالا وب‌سرور CherryPy رو ران می‌کنیم
-        print("🌐 Starting Adaptor REST Web Server on port 8081...")
+
+        port = int(self.service_ip.split(":")[1])
+        print(f"Starting adaptor REST server on port {port}...")
         conf = {
             '/': {
                 'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
                 'tools.cors.on': True
             }
         }
-        cherrypy.tree.mount(AdaptorWebServer(), '/', conf)
+        cherrypy.tree.mount(AdaptorWebServer(self), '/', conf)
         cherrypy.config.update({'server.socket_host': '0.0.0.0'})
-        cherrypy.config.update({'server.socket_port': 8081})
-        
+        cherrypy.config.update({'server.socket_port': port})
+
         cherrypy.engine.start()
         cherrypy.engine.block()
 
+
 if __name__ == "__main__":
-    adaptor = MultiChannelThingSpeakAdaptor()
+    adaptor = ThingSpeakAdaptor()
     adaptor.start()

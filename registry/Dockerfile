@@ -1,7 +1,7 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
-# این خط باعث میشه لاگ‌های پایتون درجا تو ترمینال چاپ بشن و گیر نکنن
-ENV PYTHONUNBUFFERED=1 
+# Stream Python logs straight to the container output (no buffering).
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -10,5 +10,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# برای رجیستری: CMD ["python", "main.py"]
-# برای بقیه: CMD ["python", "اسم_فایل_اصلی.py"]
+# The start command is provided per service in docker-compose.yml.

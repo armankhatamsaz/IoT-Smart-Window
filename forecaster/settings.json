@@ -1,0 +1,16 @@
+{
+    "registry_url": "http://registry:8080",
+    "service_name": "Temperature Forecaster",
+    "service_ip": "forecaster:8082",
+    "outdoor_zone": "outdoor",
+    "model": {
+        "history_results": 2000,
+        "history_hours": 6,
+        "min_samples": 60,
+        "horizon_steps": 3,
+        "max_step_seconds": 60,
+        "test_fraction": 0.2,
+        "retrain_minutes": 10,
+        "publish_seconds": 10
+    }
+}

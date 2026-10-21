@@ -1,10 +1,12 @@
 {
     "registry_url": "http://registry:8080",
-    "service_name": "ThingSpeak Cloud Adaptor",
+    "service_name": "ThingSpeak Cloud Logger & Provider",
+    "service_ip": "adaptor:8081",
+    "history_results": 100,
     "channels": [
         {
             "name": "Channel 1 - Temp & Hum",
-            "api_key": "NISAWCFMEYGTH44W",
+            "channel_id": "3279973",
             "mapping": {
                 "home/livingroom/sensor/temp": "field1",
                 "home/livingroom/sensor/hum": "field2",
@@ -17,13 +19,16 @@
             }
         },
         {
-            "name": "Channel 2 - Light Sensors",
-            "api_key": "KAH1R7H9L9Z9W2G1",
+            "name": "Channel 2 - Light & Windows",
+            "channel_id": "3297827",
             "mapping": {
                 "home/livingroom/sensor/light": "field1",
                 "home/bedroom1/sensor/light": "field2",
                 "home/bedroom2/sensor/light": "field3",
-                "home/outdoor/sensor/light": "field4"
+                "home/outdoor/sensor/light": "field4",
+                "home/livingroom/actuator/window": "field5",
+                "home/bedroom1/actuator/window": "field6",
+                "home/bedroom2/actuator/window": "field7"
             }
         }
     ]

@@ -1,7 +1,15 @@
-version: '3.8'
-
 services:
-  # 1. سرور رجیستری (کاتالوگ)
+  # MQTT broker (Eclipse Mosquitto)
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    container_name: smarthome_broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  # Registry / service catalog
   registry:
     build: ./registry
     container_name: smarthome_registry
@@ -9,89 +17,132 @@ services:
       - TZ=Asia/Tehran
     ports:
       - "8080:8080"
-    volumes:                 
-      - ./registry:/app      
+    volumes:
+      - ./registry:/app
     command: python main.py
+    restart: on-failure
 
-  # 2. کانکتور پذیرایی (Living Room)
+  # Living Room gateway
   gateway_livingroom:
     build: ./gateway
     container_name: smarthome_gw_livingroom
     environment:
       - TZ=Asia/Tehran
       - CONFIG_FILE=settings_livingroom.json
+    ports:
+      - "8091:8090"
     command: python connector.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 3. کانکتور اتاق خواب 1 (Bedroom 1)
+  # Bedroom 1 gateway
   gateway_bedroom1:
     build: ./gateway
     container_name: smarthome_gw_bedroom1
     environment:
       - TZ=Asia/Tehran
       - CONFIG_FILE=settings_bedroom1.json
+    ports:
+      - "8092:8090"
     command: python connector.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 4. کانکتور اتاق خواب 2 (Bedroom 2)
+  # Bedroom 2 gateway
   gateway_bedroom2:
     build: ./gateway
     container_name: smarthome_gw_bedroom2
     environment:
       - TZ=Asia/Tehran
       - CONFIG_FILE=settings_bedroom2.json
+    ports:
+      - "8093:8090"
     command: python connector.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 5. کانکتور محیط بیرون (Outdoor)
+  # Outdoor gateway
   gateway_outdoor:
     build: ./gateway
     container_name: smarthome_gw_outdoor
     environment:
       - TZ=Asia/Tehran
       - CONFIG_FILE=settings_outdoor.json
+    ports:
+      - "8094:8090"
     command: python connector.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 6. مغز متفکر (Analyzer)
+  # Control logic / analyzer
   analyzer:
     build: ./control_logic
     container_name: smarthome_analyzer
     environment:
       - TZ=Asia/Tehran
     command: python analyzer.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 7. ربات تلگرام
+  # Telegram bot
   telegram_bot:
     build: ./telegram_bot
     container_name: smarthome_bot
     environment:
       - TZ=Asia/Tehran
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
     command: python bot.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 8. آداپتور ThingSpeak (آپدیت شده به عنوان Provider)
+  # ThingSpeak adaptor (cloud logger + history provider)
   adaptor:
     build: ./thingspeak_adaptor
     container_name: smarthome_adaptor
     environment:
       - TZ=Asia/Tehran
+      - THINGSPEAK_CH1_WRITE_KEY=${THINGSPEAK_CH1_WRITE_KEY:-}
+      - THINGSPEAK_CH1_READ_KEY=${THINGSPEAK_CH1_READ_KEY:-}
+      - THINGSPEAK_CH2_WRITE_KEY=${THINGSPEAK_CH2_WRITE_KEY:-}
+      - THINGSPEAK_CH2_READ_KEY=${THINGSPEAK_CH2_READ_KEY:-}
     ports:
       - "8081:8081"
     command: python adaptor.py
+    restart: on-failure
     depends_on:
       - registry
+      - mosquitto
 
-  # 9. وب‌سرور برای اجرای دشبورد
+  # Temperature forecaster (machine learning on the stored history)
+  forecaster:
+    build: ./forecaster
+    container_name: smarthome_forecaster
+    environment:
+      - TZ=Asia/Tehran
+    ports:
+      - "8082:8082"
+    command: python forecaster.py
+    restart: on-failure
+    depends_on:
+      - registry
+      - mosquitto
+      - adaptor
+
+  # Static web server for the dashboard
   dashboard:
-    image: python:3.9-slim
+    image: python:3.11-slim
     container_name: smarthome_dashboard
     working_dir: /app
     environment:

@@ -2,5 +2,6 @@
     "registry_url": "http://registry:8080",
     "zone_name": "Living Room",
     "sensors": ["temp", "hum", "light"],
-    "has_actuator": true
+    "has_actuator": true,
+    "service_ip": "gateway_livingroom:8090"
 }

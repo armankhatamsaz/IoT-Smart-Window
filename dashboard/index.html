@@ -7,8 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     
     <script id="tailwind-config">
         tailwind.config = {
@@ -136,10 +136,10 @@
                         <div class="flex justify-between items-start mb-4 z-10 shrink-0">
                             <div>
                                 <h2 id="current-room-label" class="text-xl font-bold text-slate-800">Room</h2>
-                                <p class="text-slate-500 text-sm">Facing South-East • Actively Adjusting</p>
+                                <p class="text-slate-500 text-sm">Live sensors · automatic window control</p>
                             </div>
                             <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-primary border border-white/50 shadow-sm flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[16px]">visibility</span> Live View
+                                <span class="material-symbols-outlined text-[16px]">sensors</span> Live data
                             </div>
                         </div>
                         
@@ -149,27 +149,36 @@
                             
                             <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
                                 <div class="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-xl border border-white/10">
-                                    <span class="block text-xs text-white/70">External Lux Camera</span>
+                                    <span class="block text-xs text-white/70">Outdoor light</span>
                                     <span id="cam-lux" class="font-mono text-lg font-bold">-- lx</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
-                        <div id="btn-open" class="neumorphic-button h-20 rounded-2xl flex items-center justify-center gap-3">
-                            <div class="icon-bg w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 transition-all">
-                                <span class="material-symbols-outlined">meeting_room</span>
+                    <div class="glass-panel rounded-2xl p-6 shadow-soft shrink-0">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-slate-800 font-bold text-lg flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">window</span> Window Control
+                            </h3>
+                            <div class="flex items-baseline gap-1">
+                                <span id="win-value" class="text-3xl font-bold text-primary">0</span>
+                                <span class="text-sm text-slate-500 font-semibold">% open</span>
                             </div>
-                            <span class="btn-text font-semibold text-lg text-slate-700">Open Window</span>
                         </div>
-                        
-                        <div id="btn-close" class="neumorphic-button h-20 rounded-2xl flex items-center justify-center gap-3">
-                            <div class="icon-bg w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 transition-all">
-                                <span class="material-symbols-outlined">door_front</span>
+                        <input id="win-slider" type="range" min="0" max="100" step="5" value="0"
+                            class="w-full h-2 accent-primary cursor-pointer mb-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div id="btn-close" class="neumorphic-button h-14 rounded-xl flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-slate-500">door_front</span>
+                                <span class="font-semibold text-slate-700">Close</span>
                             </div>
-                            <span class="btn-text font-semibold text-lg text-slate-700">Close Window</span>
+                            <div id="btn-open" class="neumorphic-button h-14 rounded-xl flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-slate-500">meeting_room</span>
+                                <span class="font-semibold text-slate-700">Open</span>
+                            </div>
                         </div>
+                        <p id="win-reason" class="text-xs text-slate-400 mt-3 italic min-h-[1rem]"></p>
                     </div>
 
                     <div class="glass-panel rounded-2xl p-6 shadow-soft flex flex-col h-[220px] shrink-0">
@@ -200,6 +209,7 @@
                                     <h4 id="val-temp" class="text-2xl font-bold text-slate-800">--</h4>
                                     <span class="text-sm text-slate-500">°C</span>
                                 </div>
+                                <p id="val-forecast" class="text-xs font-semibold text-indigo-500 mt-1 hidden-view"></p>
                             </div>
                         </div>
                         
@@ -268,7 +278,8 @@
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-slate-800">Historical Data Analytics</h2>
-                            <p class="text-slate-500 text-sm">Powered by Internal Adaptor API (Agnostic Architecture)</p>
+                            <p class="text-slate-500 text-sm">Stored in ThingSpeak, served by the adaptor's REST API</p>
+                            <p id="model-info" class="text-xs font-semibold text-indigo-500 mt-1"></p>
                         </div>
                         <button id="btn-refresh-history" class="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary/20 transition">
                             Refresh Now
@@ -284,16 +295,16 @@
 </div>
 
 <script>
-    const REGISTRY_URL = 'http://127.0.0.1:8080/config';
-    // 🚀 آدرس API جدید آداپتور (جایگزین مستقیم تینگ‌اسپیک)
+    const REGISTRY_URL = 'http://127.0.0.1:8080';
+    // History is served by the local adaptor, not fetched from ThingSpeak directly.
     const ADAPTOR_HISTORY_URL = 'http://127.0.0.1:8081/history';
+    const FORECASTER_MODEL_URL = 'http://127.0.0.1:8082/model';
 
-    // مپینگ فیلدهای تینگ‌اسپیک به اتاق‌ها
-    const roomFieldMap = {
-        "livingroom": { temp: "field1", hum: "field2" },
-        "bedroom1": { temp: "field3", hum: "field4" },
-        "bedroom2": { temp: "field5", hum: "field6" }
-    };
+    // Extracts the first measurement value from a SenML document (RFC 8428).
+    function senmlValue(payload) {
+        const records = payload.e;
+        return (Array.isArray(records) && records.length) ? records[0].v : undefined;
+    }
 
     let mqttClient = null;
     let currentUser = null;
@@ -302,7 +313,12 @@
     let sensorDataCache = {
         outdoor: { temp: "--", hum: "--", light: "--" }
     };
+    let forecasts = {};  // zone -> { value, forTime, receivedAt }
     let historyInterval = null;
+
+    function isAllowedZone(zone) {
+        return !!currentUser && currentUser.allowed_zones.some(r => r.replace(" ", "").toLowerCase() === zone);
+    }
 
     // --- 0. Login & Service Discovery ---
     const loginOverlay = document.getElementById('login-overlay');
@@ -323,12 +339,15 @@
         document.getElementById('login-btn-text').innerText = "Connecting to Registry...";
 
         try {
-            const response = await fetch(REGISTRY_URL);
-            const config = await response.json();
-            
-            // هماهنگ با کاتالوگ جدید
-            const user = config.usersList.find(u => u.userName === uName && u.password === uPass);
-            
+            // The registry checks the password; the browser never sees the user list.
+            const loginResp = await fetch(`${REGISTRY_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userName: uName, password: uPass })
+            });
+            const user = loginResp.ok ? await loginResp.json() : null;
+            const broker = await (await fetch(`${REGISTRY_URL}/broker`)).json();
+
             if (user) {
                 currentUser = user;
                 document.getElementById('user-avatar').innerText = user.userName.charAt(0);
@@ -372,8 +391,7 @@
                 appWrapper.classList.remove('hidden-view');
                 loginError.classList.add('hidden-view');
                 
-                const wsUrl = `wss://${config.broker.IP}:8884/mqtt`;
-                if(!mqttClient) initSystem(wsUrl); 
+                if(!mqttClient) initSystem(broker.webSocketURL);
             } else {
                 throw new Error("Invalid User");
             }
@@ -392,6 +410,9 @@
             mqttClient.end();
             mqttClient = null;
         }
+        // The next user must not see this user's rooms in the log.
+        document.getElementById('activity-log').innerHTML =
+            '<div class="text-sm text-slate-400 italic">Waiting for system actions...</div>';
     });
 
     // --- 1. Tab Switching Logic ---
@@ -423,37 +444,39 @@
         historyInterval = setInterval(loadHistoricalData, 20000);
     });
 
-    // --- 2. Button Visual State Logic ---
+    // --- 2. Window Control (continuous 0-100%) ---
     const btnOpen = document.getElementById('btn-open');
     const btnClose = document.getElementById('btn-close');
+    const winSlider = document.getElementById('win-slider');
+    const winValue = document.getElementById('win-value');
+    const winReason = document.getElementById('win-reason');
 
-    function setActiveButton(activeBtn, inactiveBtn) {
-        activeBtn.classList.add('neumorphic-pressed');
-        const activeIcon = activeBtn.querySelector('.icon-bg');
-        const activeText = activeBtn.querySelector('.btn-text');
-        activeIcon.classList.replace('bg-slate-100', 'bg-primary');
-        activeIcon.classList.replace('text-slate-500', 'text-white');
-        activeText.classList.replace('text-slate-700', 'text-primary');
+    let windowStates = {};   // zone -> last known position
+    let windowReasons = {};  // zone -> last action reason
+    let sliderActive = false; // true while the user is dragging
 
-        inactiveBtn.classList.remove('neumorphic-pressed');
-        const inactiveIcon = inactiveBtn.querySelector('.icon-bg');
-        const inactiveText = inactiveBtn.querySelector('.btn-text');
-        inactiveIcon.classList.replace('bg-primary', 'bg-slate-100');
-        inactiveIcon.classList.replace('text-white', 'text-slate-500');
-        inactiveText.classList.replace('text-primary', 'text-slate-700');
+    function reflectSelectedWindow() {
+        const pos = windowStates[selectedRoomKey] ?? 0;
+        winValue.innerText = pos;
+        winSlider.value = pos;
+        winReason.innerText = windowReasons[selectedRoomKey] || '';
     }
 
-    btnOpen.addEventListener('click', () => {
-        if(mqttClient && selectedRoomKey) {
-            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "OPEN", reason: currentUser.userName}));
-        }
-    });
+    function publishPosition(position) {
+        if (!mqttClient || !selectedRoomKey) return;
+        windowStates[selectedRoomKey] = position;
+        const reason = `Dashboard (${currentUser.userName})`;
+        windowReasons[selectedRoomKey] = reason;
+        mqttClient.publish(`home/${selectedRoomKey}/actuator/window`,
+            JSON.stringify({ position: position, source: "manual", reason: reason }),
+            { retain: true });
+        reflectSelectedWindow();
+    }
 
-    btnClose.addEventListener('click', () => {
-        if(mqttClient && selectedRoomKey) {
-            mqttClient.publish(`home/${selectedRoomKey}/actuator/window`, JSON.stringify({command: "CLOSE", reason: currentUser.userName}));
-        }
-    });
+    winSlider.addEventListener('input', () => { sliderActive = true; winValue.innerText = winSlider.value; });
+    winSlider.addEventListener('change', () => { sliderActive = false; publishPosition(parseInt(winSlider.value)); });
+    btnOpen.addEventListener('click', () => publishPosition(100));
+    btnClose.addEventListener('click', () => publishPosition(0));
 
     function updateUIValues() {
         const indoor = sensorDataCache[selectedRoomKey] || {temp: "--", hum: "--", light: "--"};
@@ -467,6 +490,19 @@
         
         const luxElem = document.getElementById('cam-lux');
         if (luxElem) luxElem.innerText = (outdoor.light !== undefined && outdoor.light !== "--") ? outdoor.light + ' lx' : "-- lx";
+
+        const fc = forecasts[selectedRoomKey];
+        const fcElem = document.getElementById('val-forecast');
+        if (fc && Date.now() - fc.receivedAt < 60000 && typeof indoor.temp === 'number') {
+            const arrow = fc.value > indoor.temp + 0.1 ? '↗' : (fc.value < indoor.temp - 0.1 ? '↘' : '→');
+            const minutes = Math.max(1, Math.round((fc.forTime * 1000 - Date.now()) / 60000));
+            fcElem.innerText = `${arrow} ${fc.value.toFixed(1)} °C in ~${minutes} min (forecast)`;
+            fcElem.classList.remove('hidden-view');
+        } else {
+            fcElem.classList.add('hidden-view');
+        }
+
+        if (!sliderActive) reflectSelectedWindow();
     }
 
     // --- 3. MQTT Logic Initialization ---
@@ -482,72 +518,111 @@
 
             mqttClient.subscribe('home/+/sensor/+');
             mqttClient.subscribe('home/+/actuator/window');
+            mqttClient.subscribe('home/+/forecast/temp');
         });
 
-        mqttClient.on('message', (topic, message) => {
+        mqttClient.on('message', (topic, message, packet) => {
             try {
                 const parts = topic.split('/');
                 const zone = parts[1]; 
                 const type = parts[2]; 
                 const specific = parts[3]; 
                 const payload = JSON.parse(message.toString());
+                if (typeof payload !== 'object' || payload === null) return;
 
                 if (type === 'sensor') {
+                    const value = senmlValue(payload);
+                    if (value === undefined) return;
                     if (!sensorDataCache[zone]) sensorDataCache[zone] = {};
-                    sensorDataCache[zone][specific] = payload.value !== undefined ? payload.value : parseFloat(payload);
+                    sensorDataCache[zone][specific] = value;
                     if (zone === selectedRoomKey || zone === "outdoor") updateUIValues();
-                } 
-                else if (type === 'actuator' && zone === selectedRoomKey) {
-                    if(payload.command === "OPEN") setActiveButton(btnOpen, btnClose);
-                    if(payload.command === "CLOSE") setActiveButton(btnClose, btnOpen);
+                }
+                else if (type === 'forecast') {
+                    const value = senmlValue(payload);
+                    if (value === undefined) return;
+                    forecasts[zone] = { value: value, forTime: payload.e[0].t, receivedAt: Date.now() };
+                    if (zone === selectedRoomKey) updateUIValues();
+                }
+                else if (type === 'actuator') {
+                    windowStates[zone] = payload.position;
+                    windowReasons[zone] = payload.reason || '';
+                    if (zone === selectedRoomKey && !sliderActive) reflectSelectedWindow();
+
+                    // A retained message is the last known position, not a new
+                    // action, and the log only shows the user's own rooms.
+                    if (packet.retain || !isAllowedZone(zone)) return;
 
                     const logContainer = document.getElementById('activity-log');
                     if(logContainer.innerHTML.includes("Waiting for system actions")) logContainer.innerHTML = '';
 
                     const timeString = new Date().toLocaleTimeString();
-                    const colorClass = payload.command === "OPEN" ? "text-primary" : "text-rose-500";
-                    
+                    const src = payload.source === 'manual' ? 'manual' : 'auto';
+                    const colorClass = (payload.position > 0) ? "text-primary" : "text-rose-500";
+
                     const logEntry = document.createElement('div');
-                    logEntry.className = "flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse shrink-0";
+                    logEntry.className = "flex justify-between items-start bg-white p-3 rounded-xl border border-slate-100 shadow-sm text-sm animate-pulse shrink-0";
                     logEntry.innerHTML = `
-                        <span class="text-slate-500 font-mono text-xs">${timeString}</span>
-                        <span class="font-bold ${colorClass}">${payload.command} [${zone.toUpperCase()}]</span>
+                        <div class="flex flex-col pr-2">
+                            <span class="font-bold ${colorClass}">${zone.toUpperCase()} &rarr; ${payload.position}% <span class="text-slate-400 font-normal">(${src})</span></span>
+                            <span class="text-slate-400 text-[11px] leading-tight">${payload.reason || ''}</span>
+                        </div>
+                        <span class="text-slate-500 font-mono text-[10px] whitespace-nowrap">${timeString}</span>
                     `;
                     logContainer.prepend(logEntry);
-                    while (logContainer.children.length > 5) logContainer.removeChild(logContainer.lastChild);
+                    while (logContainer.children.length > 6) logContainer.removeChild(logContainer.lastChild);
                 }
             } catch(e){}
         });
     }
 
-    // --- 4. 🚀 New Agnostic History Logic (via Adaptor) ---
+    // --- 4. History loading (via internal adaptor) ---
     let historyChartInstance = null;
-    
+
     async function loadHistoricalData() {
         try {
-            // 🚀 درخواست به آداپتور داخلی خودمان به جای تینگ‌اسپیک
-            const response = await fetch(ADAPTOR_HISTORY_URL);
+            const response = await fetch(`${ADAPTOR_HISTORY_URL}?results=90`);
             const data = await response.json();
-            
-            const labels = data.feeds.map(f => {
-                const d = new Date(f.created_at);
+            const samples = data.samples || [];
+
+            // The adaptor already answers in zones and readings, so the page
+            // does not need to know how ThingSpeak stores them.
+            const pick = (s, zone, name) => {
+                const z = s.zones[zone];
+                return (z && z[name] !== undefined) ? z[name] : null;
+            };
+            const labels = samples.map(s => {
+                const d = new Date(s.t);
                 return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0');
             });
-            
-            const fields = roomFieldMap[selectedRoomKey] || roomFieldMap["livingroom"];
-            const temps_in = data.feeds.map(f => parseFloat(f[fields.temp]));
-            const hums_in = data.feeds.map(f => parseFloat(f[fields.hum]));
-            const temps_out = data.feeds.map(f => parseFloat(f.field7));
-            const hums_out = data.feeds.map(f => parseFloat(f.field8));
 
             const roomName = document.getElementById('current-room-label').innerText;
-            renderChart(labels, temps_in, hums_in, temps_out, hums_out, roomName);
+            renderChart(labels, {
+                tempIn: samples.map(s => pick(s, selectedRoomKey, 'temp')),
+                tempOut: samples.map(s => pick(s, 'outdoor', 'temp')),
+                humIn: samples.map(s => pick(s, selectedRoomKey, 'hum')),
+                humOut: samples.map(s => pick(s, 'outdoor', 'hum')),
+                window: samples.map(s => pick(s, selectedRoomKey, 'window'))
+            }, roomName);
         } catch (error) {
             console.error("Error fetching historical data from internal Adaptor:", error);
         }
+        loadModelInfo();
     }
 
-    function renderChart(labels, temps_in, hums_in, temps_out, hums_out, roomName) {
+    async function loadModelInfo() {
+        const info = document.getElementById('model-info');
+        try {
+            const models = await (await fetch(FORECASTER_MODEL_URL)).json();
+            const m = models[selectedRoomKey];
+            info.innerText = m
+                ? `Forecast model: ${m.samples} samples, error ${m.mae} °C vs ${m.mae_naive} °C for "no change" (${(m.mae_naive / m.mae).toFixed(1)}x better)`
+                : 'Forecast model: still collecting data for this room';
+        } catch (error) {
+            info.innerText = '';
+        }
+    }
+
+    function renderChart(labels, series, roomName) {
         const ctx = document.getElementById('historyChart').getContext('2d');
         if (historyChartInstance) historyChartInstance.destroy();
 
@@ -558,47 +633,72 @@
                 datasets: [
                     {
                         label: `Indoor Temp (°C) [${roomName}]`,
-                        data: temps_in,
+                        data: series.tempIn,
                         borderColor: '#4f46e5',
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        yAxisID: 'y'
                     },
                     {
                         label: 'Outdoor Temp (°C)',
-                        data: temps_out,
+                        data: series.tempOut,
                         borderColor: '#f59e0b',
                         backgroundColor: 'rgba(245, 158, 11, 0.1)',
                         borderWidth: 2,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: `Window (%) [${roomName}]`,
+                        data: series.window,
+                        borderColor: '#2463eb',
+                        backgroundColor: 'rgba(36, 99, 235, 0.08)',
+                        borderWidth: 1.5,
+                        stepped: true,
+                        pointRadius: 0,
+                        fill: true,
+                        yAxisID: 'y1'
                     },
                     {
                         label: `Indoor Hum (%) [${roomName}]`,
-                        data: hums_in,
+                        data: series.humIn,
                         borderColor: '#0d9488',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         tension: 0.4,
-                        fill: false
+                        fill: false,
+                        hidden: true,
+                        yAxisID: 'y'
                     },
                     {
                         label: 'Outdoor Hum (%)',
-                        data: hums_out,
+                        data: series.humOut,
                         borderColor: '#e11d48',
                         borderWidth: 2,
                         borderDash: [5, 5],
                         tension: 0.4,
-                        fill: false
+                        fill: false,
+                        hidden: true,
+                        yAxisID: 'y'
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                spanGaps: true,
                 plugins: { legend: { position: 'top' } },
-                scales: { y: { beginAtZero: false } }
+                scales: {
+                    y: { beginAtZero: false, title: { display: true, text: '°C / %' } },
+                    y1: {
+                        position: 'right', min: 0, max: 100,
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Window %' }
+                    }
+                }
             }
         });
     }

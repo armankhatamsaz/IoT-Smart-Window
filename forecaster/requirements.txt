@@ -1,0 +1,5 @@
+paho-mqtt==1.6.1
+requests==2.34.2
+cherrypy==18.10.0
+numpy==2.4.6
+scikit-learn==1.9.1
