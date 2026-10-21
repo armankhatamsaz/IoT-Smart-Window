@@ -68,7 +68,7 @@ class Analyzer:
             "hum_comfort_min": 30.0, "hum_comfort_max": 65.0,
             "light_glare": 1200.0, "light_low": 250.0, "light_release": 400.0,
             "daylight_min": 300.0, "outdoor_delta": 1.0,
-            "window_size": 6, "min_samples": 3,
+            "window_size": 5, "min_samples": 3,
             "max_step": 20, "deadband": 8, "persistence": 3,
             "manual_override_sec": 90, "forecast_max_age_sec": 60,
         }
